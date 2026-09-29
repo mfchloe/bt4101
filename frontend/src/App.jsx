@@ -17,9 +17,11 @@ export default function App() {
   const Page = PAGES[active];
 
   return (
-    <div className="mx-auto max-w-5xl overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="flex h-screen flex-col bg-white">
       <NavBar active={active} onChange={setActive} />
-      <Page />
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <Page />
+      </main>
     </div>
   );
 }

@@ -9,7 +9,7 @@ const TABS = [
 
 export default function NavBar({ active, onChange }) {
   return (
-    <div className="flex gap-1 border-b border-slate-200 bg-slate-50 px-4 py-2">
+    <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-slate-50 px-4 py-2">
       {TABS.map(({ id, label, icon: Icon }) => {
         const isActive = active === id;
         return (

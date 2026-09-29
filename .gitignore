@@ -4,3 +4,9 @@ backend/venv/
 backend/__pycache__/
 backend/*.pyc
 .env
+
+# Uploaded files
+backend/uploads/
+
+# Chroma
+backend/chroma_db/

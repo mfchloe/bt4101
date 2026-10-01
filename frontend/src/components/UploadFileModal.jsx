@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { FileUp, FileText, X } from "lucide-react";
+import { API_URL } from "../api";
 
 const DOC_TYPES = ["Model essay", "Rubric", "Lesson notes", "Marked essay"];
+const SBB_LEVELS = ["G1", "G2", "G3"];
 
 export default function UploadFileModal({ onClose, onUpload }) {
   const [docType, setDocType] = useState(DOC_TYPES[0]);
+  const [sbb, setSbb] = useState("");
 
   const [theme, setTheme] = useState("");
   const [format, setFormat] = useState("");
@@ -32,10 +35,11 @@ export default function UploadFileModal({ onClose, onUpload }) {
 
       formData.append("file", file);
       formData.append("docType", docType);
+      formData.append("sbb", sbb);
       formData.append("theme", theme);
       formData.append("format", format);
 
-      const response = await fetch("http://localhost:5000/api/library/upload", {
+      const response = await fetch(`${API_URL}/api/library/upload`, {
         method: "POST",
         body: formData,
       });
@@ -48,7 +52,7 @@ export default function UploadFileModal({ onClose, onUpload }) {
 
       console.log("Upload successful:", data);
 
-      onUpload?.(data);
+      onUpload?.({ ...data, doc_type: docType });
 
       onClose();
     } catch (error) {
@@ -71,7 +75,15 @@ export default function UploadFileModal({ onClose, onUpload }) {
           </button>
         </div>
 
-        <div className="mb-4 rounded-md border border-dashed border-slate-300 p-6 text-center">
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const droppedFile = e.dataTransfer.files?.[0];
+            if (droppedFile) setFile(droppedFile);
+          }}
+          className="mb-4 rounded-md border border-dashed border-slate-300 p-6 text-center"
+        >
           <FileUp size={28} className="mx-auto text-slate-400" />
 
           <p className="mt-2 text-sm text-slate-500">Drag a file here or</p>
@@ -102,7 +114,7 @@ export default function UploadFileModal({ onClose, onUpload }) {
         )}
 
         <label className="mb-1 block text-xs text-slate-500">
-          Document type <span className="text-slate-400">· suggested</span>
+          Document type
         </label>
 
         <select
@@ -112,6 +124,21 @@ export default function UploadFileModal({ onClose, onUpload }) {
         >
           {DOC_TYPES.map((type) => (
             <option key={type}>{type}</option>
+          ))}
+        </select>
+
+        <label className="mb-1 block text-xs text-slate-500">
+          SBB <span className="text-slate-400">· optional</span>
+        </label>
+
+        <select
+          value={sbb}
+          onChange={(e) => setSbb(e.target.value)}
+          className="mb-3 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        >
+          <option value="">All levels</option>
+          {SBB_LEVELS.map((level) => (
+            <option key={level}>{level}</option>
           ))}
         </select>
 

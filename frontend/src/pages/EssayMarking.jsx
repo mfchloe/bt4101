@@ -3,7 +3,7 @@ import EssayUploadForm from "../components/essay-marking/EssayUploadForm";
 import EssayReview from "../components/essay-marking/EssayReview";
 import { SAMPLE_RESULT } from "../components/essay-marking/sampleResult";
 
-const API_BASE_URL = "http://localhost:5000";
+import { API_URL as API_BASE_URL } from "../api";
 
 /*
  * Essay marking has two stages:

@@ -5,7 +5,7 @@ import useResizableWidth from "../hooks/useResizableWidth";
 
 const BANDS = ["G1", "G2", "G3"];
 
-const API_BASE_URL = "http://localhost:5000";
+import { API_URL as API_BASE_URL } from "../api";
 
 export default function ContentGenerator() {
   const [band, setBand] = useState("G1");

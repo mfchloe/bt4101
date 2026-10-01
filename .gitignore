@@ -10,3 +10,5 @@ backend/uploads/
 
 # Chroma
 backend/chroma_db/
+# Local SQLite database
+backend/app.db

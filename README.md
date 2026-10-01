@@ -17,7 +17,7 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-The Flask server runs at `http://127.0.0.1:5000`. Check that it is responding at `http://127.0.0.1:5000/health`; it should return `{"status":"ok"}`.
+The Flask server runs at `http://127.0.0.1:5001`. Check that it is responding at `http://127.0.0.1:5001/health`; it should return `{"status":"ok"}`.
 
 ## Run the frontend
 

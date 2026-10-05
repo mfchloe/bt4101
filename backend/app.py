@@ -12,7 +12,12 @@ from rubric import extract_rubric_bands
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 DOC_TYPES = {"Model essay", "Rubric", "Lesson notes", "Marked essay"}
-SBB_LEVELS = {"", "G1", "G2", "G3"}  # "" = not specific to one level
+# "" = not specified (for SBB, it means the file applies to all levels)
+SBB_LEVELS = {"", "G1", "G2", "G3"}
+THEMES = {"", "Technology", "Environment", "Identity", "Society", "Education",
+          "Relationships", "Others"}
+FORMATS = {"", "Narrative", "Personal Recount", "Descriptive", "Reflective",
+           "Argumentative", "Discursive", "Hybrid"}
 
 app = Flask(__name__)
 CORS(app)
@@ -41,6 +46,10 @@ def upload_file():
         return {"error": "Invalid document type"}, 400
     if sbb not in SBB_LEVELS:
         return {"error": "Invalid SBB level"}, 400
+    if theme not in THEMES:
+        return {"error": "Invalid theme"}, 400
+    if format not in FORMATS:
+        return {"error": "Invalid format"}, 400
 
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:

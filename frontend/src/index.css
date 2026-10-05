@@ -1,8 +1,96 @@
 @import "tailwindcss";
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
+/*
+ * CoTeach brand palette
+ *   Teal  #0E7C7B  primary: buttons, active nav, links, AI content (teal-600)
+ *   Coral #F26B4E  teacher actions: override, edits (coral-500)
+ *   Ink   #14262E  text and headings (slate-900)
+ *   Mist  #EAF3F2  page background (mist)
+ *   Amber #F2B33D  borderline flags, weak criteria, warnings (amber-400)
+ *
+ * Tailwind's teal, amber and slate scales are replaced with brand-tuned
+ * versions, so existing classes like text-slate-500 pick up the Ink tint.
+ */
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Poppins", "Manrope", ui-sans-serif, sans-serif;
+
+  --color-mist: #eaf3f2;
+
+  --color-teal-50: #eef6f5;
+  --color-teal-100: #d5eae8;
+  --color-teal-200: #acd5d2;
+  --color-teal-300: #7bbab6;
+  --color-teal-400: #44999a;
+  --color-teal-500: #1d8988;
+  --color-teal-600: #0e7c7b;
+  --color-teal-700: #0b6665;
+  --color-teal-800: #0a5150;
+  --color-teal-900: #083f3f;
+
+  --color-coral-50: #fef1ed;
+  --color-coral-100: #fddcd3;
+  --color-coral-200: #fab9a8;
+  --color-coral-300: #f79a83;
+  --color-coral-400: #f5826a;
+  --color-coral-500: #f26b4e;
+  --color-coral-600: #db5537;
+  --color-coral-700: #b5432a;
+
+  --color-amber-50: #fef8ea;
+  --color-amber-100: #fcecc6;
+  --color-amber-200: #f9dc95;
+  --color-amber-300: #f6c866;
+  --color-amber-400: #f2b33d;
+  --color-amber-500: #e09d1f;
+  --color-amber-600: #9e6b10; /* darkened so small text passes contrast */
+  --color-amber-700: #80560d;
+
+  /* Ink-tinted neutrals (slate-900 = Ink) */
+  --color-slate-50: #f5f9f9;
+  --color-slate-100: #e9eff0;
+  --color-slate-200: #d8e2e4;
+  --color-slate-300: #bccacd;
+  --color-slate-400: #8c9ea3;
+  --color-slate-500: #5f737a;
+  --color-slate-600: #485b62;
+  --color-slate-700: #33464d;
+  --color-slate-800: #22353c;
+  --color-slate-900: #14262e;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    @apply bg-mist font-sans text-slate-900 antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
+  /* Tailwind v4 no longer gives buttons a pointer cursor */
+  button:not(:disabled),
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  /* One focus style for every form field */
+  :where(input, select, textarea):focus {
+    outline: none;
+    border-color: var(--color-teal-500);
+    box-shadow: 0 0 0 3px --alpha(var(--color-teal-500) / 15%);
+  }
+
+  ::placeholder {
+    color: var(--color-slate-400);
+  }
 }

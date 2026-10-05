@@ -1,40 +1,42 @@
 /*
  * Example response from POST /api/essays/mark. Used by the
- * "Preview with sample essays" link while the backend is being built.
+ * "Try it with sample essays" link while the backend is being built.
  */
 export const SAMPLE_RESULT = {
   rubric: "G2 rubric",
+  // Bands of the G2 rubric, in the same shape as the rubric_bands table
+  rubricBands: [
+    { criterion: "Content", band: 5, min_mark: 9, max_mark: 10, descriptor: "All aspects of the task are fully addressed and developed in detail" },
+    { criterion: "Content", band: 4, min_mark: 7, max_mark: 8, descriptor: "All aspects of the task are addressed with some development" },
+    { criterion: "Content", band: 3, min_mark: 5, max_mark: 6, descriptor: "Some aspects of the task are addressed with some development" },
+    { criterion: "Content", band: 2, min_mark: 3, max_mark: 4, descriptor: "Some aspects of the task are addressed" },
+    { criterion: "Content", band: 1, min_mark: 1, max_mark: 2, descriptor: "Some attempts to address the task" },
+    { criterion: "Content", band: 0, min_mark: 0, max_mark: 0, descriptor: "No creditable response." },
+    { criterion: "Language", band: 5, min_mark: 17, max_mark: 20, descriptor: "Coherent presentation of ideas, with effective cohesion within and between paragraphs; Vocabulary and grammar structures varied enough to convey shades of meaning; Vocabulary, grammar, punctuation and spelling used mostly accurately" },
+    { criterion: "Language", band: 4, min_mark: 13, max_mark: 16, descriptor: "Most ideas coherently presented, with some cohesion within and between paragraphs; Vocabulary and grammar structures sufficiently varied to convey intended meaning; Vocabulary, grammar, punctuation and spelling often used accurately" },
+    { criterion: "Language", band: 3, min_mark: 9, max_mark: 12, descriptor: "Some ideas coherently presented, with simple cohesive devices used to aid cohesion within paragraphs; Some attempt at a range of vocabulary and grammar structures; meaning is clear; Vocabulary, grammar, punctuation and spelling used with some degree of control" },
+    { criterion: "Language", band: 2, min_mark: 5, max_mark: 8, descriptor: "Ideas coherently presented at sentence level; Simple vocabulary, grammar, punctuation and spelling used mostly appropriately; meaning is generally clear" },
+    { criterion: "Language", band: 1, min_mark: 1, max_mark: 4, descriptor: "Some ideas coherently presented at sentence level; A few examples of correct use of simple vocabulary, grammar, punctuation and spelling; meaning is sometimes clear" },
+    { criterion: "Language", band: 0, min_mark: 0, max_mark: 0, descriptor: "No creditable response." },
+  ],
   essays: [
     {
       id: "sample-1",
       studentName: "Tan Wei Ling",
       source: "ocr",
-      flag: "Borderline",
       text: "Some people think that school uniforms should be removed because it limits how student express themselves. However, I believe uniforms should be kept.\n\nFirstly, uniforms create a sense of equality among students, since everyone wears the same thing regardless of family income.\n\nSecondly, it help student to focus more on study instead of what to wear every morning.\n\nIn conclusion, uniforms should stay because it is good for the school.",
       criteria: [
         {
           name: "Content",
-          score: 3,
-          max: 5,
-          note: "Clear stance with two supporting reasons.",
+          score: 6,
+          max: 10,
+          note: "Clear stance with two reasons, but the conclusion does not develop them.",
         },
         {
           name: "Language",
-          score: 2,
-          max: 5,
-          note: "Repeated subject-verb agreement errors.",
-        },
-        {
-          name: "Organisation",
-          score: 4,
-          max: 5,
-          note: "Clear intro, body, and conclusion structure.",
-        },
-        {
-          name: "Vocabulary",
-          score: 2,
-          max: 5,
-          note: "Simple word choice; conclusion is vague.",
+          score: 9,
+          max: 20,
+          note: "Clear paragraphs, but repeated subject-verb agreement errors and simple word choice.",
         },
       ],
       feedback:
@@ -94,27 +96,15 @@ export const SAMPLE_RESULT = {
       criteria: [
         {
           name: "Content",
-          score: 4,
-          max: 5,
-          note: "Addresses a counter-argument; second reason needs an example.",
+          score: 8,
+          max: 10,
+          note: "Addresses a counter-argument; the second reason needs an example.",
         },
         {
           name: "Language",
-          score: 3,
-          max: 5,
-          note: "A few spelling mistakes.",
-        },
-        {
-          name: "Organisation",
-          score: 5,
-          max: 5,
-          note: "Logical paragraphing with a clear conclusion.",
-        },
-        {
-          name: "Vocabulary",
-          score: 3,
-          max: 5,
-          note: "Some informal words.",
+          score: 13,
+          max: 20,
+          note: "Logical paragraphing, with a few spelling mistakes and informal words.",
         },
       ],
       feedback:

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { FileText, FileUp, Loader2, X } from "lucide-react";
+import { ClipboardCheck, FileText, FileUp, Loader2, X } from "lucide-react";
+import PageHeader from "../PageHeader";
 import { FORMATS, SBB_LEVELS, THEMES } from "../../options";
 
 const ACCEPTED_FILES = ".pdf,.docx,.txt,.jpg,.jpeg,.png";
@@ -75,29 +76,27 @@ export default function EssayUploadForm({
     });
 
   return (
-    <div className="p-5">
-      <p className="text-base font-medium text-slate-900">Mark essays</p>
-      <p className="mt-0.5 text-sm text-slate-500">
-        Upload your students' essays. The AI scores each one against the
-        rubric, highlights errors and strengths, and drafts feedback for you
-        to review.
-      </p>
+    <div className="mx-auto w-full max-w-6xl px-6 py-8">
+      <PageHeader
+        title="Essay marking"
+        description="Upload a batch of essays. CoTeach scores each one against the rubric, highlights errors and strengths, and drafts feedback for you to review."
+      />
 
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* ASSIGNMENT */}
-        <section className="rounded-xl border border-slate-200 p-5">
-          <p className="mb-4 text-sm font-medium text-slate-900">Assignment</p>
+        <section className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="mb-5 text-base font-semibold text-slate-900">Assignment</h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs text-slate-500">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Format
               </label>
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
                 disabled={isMarking}
-                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
               >
                 <option value="">Infer automatically</option>
                 {FORMATS.map((f) => (
@@ -107,14 +106,14 @@ export default function EssayUploadForm({
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-slate-500">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Theme
               </label>
               <select
                 value={theme}
                 onChange={(e) => setTheme(e.target.value)}
                 disabled={isMarking}
-                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
               >
                 <option value="">Infer automatically</option>
                 {THEMES.map((t) => (
@@ -124,19 +123,20 @@ export default function EssayUploadForm({
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-slate-500">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Full SBB band
               </label>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
                 {SBB_LEVELS.map((b) => (
                   <button
                     key={b}
                     onClick={() => setBand(b)}
                     disabled={isMarking}
-                    className={`flex-1 rounded-md border px-2 py-1 text-sm ${
+                    aria-pressed={band === b}
+                    className={`flex-1 rounded-md px-2 py-1 text-sm font-semibold transition-colors ${
                       band === b
-                        ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                        ? "bg-white text-teal-700 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
                     {b}
@@ -146,11 +146,13 @@ export default function EssayUploadForm({
             </div>
           </div>
 
-          <p className="mt-2 text-xs text-slate-400">
-            Rubric: {band} rubric
+          <p className="mt-3 text-xs text-slate-500">
+            Scored against the{" "}
+            <span className="font-semibold text-slate-700">{band} rubric</span> in
+            your library
           </p>
 
-          <label className="mb-1 mt-4 block text-xs text-slate-500">
+          <label className="mb-1.5 mt-5 block text-xs font-semibold text-slate-700">
             Essay question
           </label>
           <textarea
@@ -158,27 +160,27 @@ export default function EssayUploadForm({
             onChange={(e) => setQuestion(e.target.value)}
             disabled={isMarking}
             placeholder="Should school uniforms be abolished? Give your view."
-            className="min-h-[60px] w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-[60px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
           />
 
-          <label className="mb-1 mt-3 block text-xs text-slate-500">
-            Marking focus (optional)
+          <label className="mb-1.5 mt-4 block text-xs font-semibold text-slate-700">
+            Marking focus <span className="font-normal text-slate-400">· optional</span>
           </label>
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             disabled={isMarking}
             placeholder="Pay extra attention to subject-verb agreement"
-            className="min-h-[60px] w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-[60px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
           />
         </section>
 
         {/* ESSAYS */}
-        <section className="rounded-xl border border-slate-200 p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-900">Essays</p>
+        <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900">Essays</h2>
             {essays.length > 0 && (
-              <p className="text-xs text-slate-400">
+              <p className="text-xs font-medium text-slate-500">
                 {essays.length} file{essays.length === 1 ? "" : "s"}
               </p>
             )}
@@ -191,24 +193,24 @@ export default function EssayUploadForm({
             }}
             onDragLeave={() => setIsDraggingOver(false)}
             onDrop={handleDrop}
-            className={`rounded-md border border-dashed p-6 text-center transition-colors ${
+            className={`flex min-h-44 flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-9 text-center transition-colors ${
               isDraggingOver
-                ? "border-indigo-400 bg-indigo-50"
-                : "border-slate-300"
+                ? "border-teal-400 bg-teal-50"
+                : "border-slate-200"
             }`}
           >
-            <FileUp size={28} className="mx-auto text-slate-400" />
-            <p className="mt-2 text-sm text-slate-500">
-              Drag essays here or{" "}
+            <FileUp size={28} className="text-teal-600" />
+            <p className="mt-2 text-sm text-slate-600">
+              Drop essays here, or{" "}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isMarking}
-                className="text-indigo-600 hover:text-indigo-700"
+                className="font-semibold text-teal-700 hover:underline"
               >
                 browse
               </button>
             </p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-500">
               One essay per file · scanned (PDF, JPG, PNG) or typed (DOCX, TXT)
             </p>
             <input
@@ -225,7 +227,7 @@ export default function EssayUploadForm({
           </div>
 
           {essays.length > 0 && (
-            <div className="mt-3 divide-y divide-slate-100 rounded-md border border-slate-200">
+            <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
               {essays.map(({ key, file, studentName }) => (
                 <div key={key} className="flex items-center gap-3 px-3 py-2">
                   <FileText size={18} className="shrink-0 text-slate-400" />
@@ -236,9 +238,9 @@ export default function EssayUploadForm({
                       disabled={isMarking}
                       aria-label="Student name"
                       placeholder="Student name"
-                      className="w-full rounded border border-transparent px-1 py-0.5 text-sm text-slate-800 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
+                      className="w-full rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium text-slate-800 hover:border-slate-200"
                     />
-                    <p className="truncate px-1 text-xs text-slate-400">
+                    <p className="truncate px-1.5 text-xs text-slate-500">
                       {file.name} · {formatSize(file.size)}
                     </p>
                   </div>
@@ -246,7 +248,7 @@ export default function EssayUploadForm({
                     onClick={() => removeEssay(key)}
                     disabled={isMarking}
                     aria-label={`Remove ${file.name}`}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                   >
                     <X size={16} />
                   </button>
@@ -258,34 +260,37 @@ export default function EssayUploadForm({
       </div>
 
       {error && (
-        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-600">
+        <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <div className="mt-5 flex items-center justify-between">
+      <div className="mt-6 flex items-center justify-between">
         <button
           onClick={onPreviewSample}
           disabled={isMarking}
-          className="text-xs text-slate-400 hover:text-slate-600"
+          className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-teal-700 hover:underline"
         >
-          Preview with sample essays
+          Try it with sample essays
         </button>
 
         <button
           onClick={handleSubmit}
           disabled={isMarking || essays.length === 0}
-          className="flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-1.5 text-sm text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex items-center gap-2 rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isMarking ? (
             <>
-              <Loader2 size={14} className="animate-spin" />
-              Marking {essays.length} essay{essays.length === 1 ? "" : "s"}...
+              <Loader2 size={15} className="animate-spin" />
+              Marking {essays.length} essay{essays.length === 1 ? "" : "s"}…
             </>
-          ) : essays.length ? (
-            `Mark ${essays.length} essay${essays.length === 1 ? "" : "s"} ↗`
           ) : (
-            "Mark essays ↗"
+            <>
+              <ClipboardCheck size={15} />
+              {essays.length
+                ? `Mark ${essays.length} essay${essays.length === 1 ? "" : "s"}`
+                : "Mark essays"}
+            </>
           )}
         </button>
       </div>

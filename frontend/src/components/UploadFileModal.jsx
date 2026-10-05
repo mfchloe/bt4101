@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileUp, FileText, X } from "lucide-react";
+import { FileText, FileUp, Loader2, X } from "lucide-react";
 import { API_URL } from "../api";
 import { FORMATS, SBB_LEVELS, THEMES } from "../options";
 
@@ -64,32 +64,63 @@ export default function UploadFileModal({ onClose, onUpload }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-base font-medium text-slate-900">Upload file</p>
+  const label = "mb-1.5 block text-xs font-semibold text-slate-700";
+  const field =
+    "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800";
+  const optional = <span className="font-normal text-slate-400">· optional</span>;
 
-          <button onClick={onClose} aria-label="Close">
-            <X size={18} className="text-slate-400 hover:text-slate-600" />
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-5 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Upload file</h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              PDF, Word, PowerPoint, text or Markdown
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        <div
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const droppedFile = e.dataTransfer.files?.[0];
-            if (droppedFile) setFile(droppedFile);
-          }}
-          className="mb-4 rounded-md border border-dashed border-slate-300 p-6 text-center"
-        >
-          <FileUp size={28} className="mx-auto text-slate-400" />
-
-          <p className="mt-2 text-sm text-slate-500">Drag a file here or</p>
-
-          <label className="mt-1 inline-block cursor-pointer rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50">
-            Browse files
+        {file ? (
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2.5">
+            <FileText size={20} className="shrink-0 text-teal-700" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-slate-800">{file.name}</p>
+              <p className="text-xs text-slate-500">
+                {(file.size / 1024 / 1024).toFixed(1)} MB
+              </p>
+            </div>
+            <button
+              onClick={() => setFile(null)}
+              aria-label="Remove file"
+              className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-600"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <label
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const droppedFile = e.dataTransfer.files?.[0];
+              if (droppedFile) setFile(droppedFile);
+            }}
+            className="mb-5 block cursor-pointer rounded-xl border-2 border-dashed border-slate-200 px-6 py-8 text-center transition-colors hover:border-teal-300 hover:bg-teal-50/40"
+          >
+            <FileUp size={28} className="mx-auto text-teal-600" />
+            <p className="mt-2 text-sm text-slate-600">
+              Drop a file here, or{" "}
+              <span className="font-semibold text-teal-700">browse</span>
+            </p>
             <input
               type="file"
               className="hidden"
@@ -97,91 +128,55 @@ export default function UploadFileModal({ onClose, onUpload }) {
               onChange={handleFileChange}
             />
           </label>
-        </div>
-
-        {file && (
-          <div className="mb-4 flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2">
-            <FileText size={18} className="text-slate-500" />
-
-            <p className="flex-1 truncate text-sm text-slate-700">
-              {file.name}
-            </p>
-
-            <span className="text-xs text-slate-400">
-              {(file.size / 1024 / 1024).toFixed(1)} MB
-            </span>
-          </div>
         )}
 
-        <label className="mb-1 block text-xs text-slate-500">
-          Document type
-        </label>
-
-        <select
-          value={docType}
-          onChange={(e) => setDocType(e.target.value)}
-          className="mb-3 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-        >
-          {DOC_TYPES.map((type) => (
-            <option key={type}>{type}</option>
-          ))}
-        </select>
-
-        <label className="mb-1 block text-xs text-slate-500">
-          SBB <span className="text-slate-400">· optional</span>
-        </label>
-
-        <select
-          value={sbb}
-          onChange={(e) => setSbb(e.target.value)}
-          className="mb-3 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-        >
-          <option value="">All levels</option>
-          {SBB_LEVELS.map((level) => (
-            <option key={level}>{level}</option>
-          ))}
-        </select>
-
-        <div className="mb-5 grid grid-cols-2 gap-3">
+        <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs text-slate-500">
-              Theme <span className="text-slate-400">· optional</span>
-            </label>
-
-            <select
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            >
-              <option value="">None</option>
-              {THEMES.map((t) => (
-                <option key={t}>{t}</option>
+            <label className={label}>Document type</label>
+            <select value={docType} onChange={(e) => setDocType(e.target.value)} className={field}>
+              {DOC_TYPES.map((type) => (
+                <option key={type}>{type}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-slate-500">
-              Format <span className="text-slate-400">· optional</span>
-            </label>
-
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            >
-              <option value="">None</option>
-              {FORMATS.map((f) => (
-                <option key={f}>{f}</option>
+            <label className={label}>SBB {optional}</label>
+            <select value={sbb} onChange={(e) => setSbb(e.target.value)} className={field}>
+              <option value="">All levels</option>
+              {SBB_LEVELS.map((level) => (
+                <option key={level}>{level}</option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Format {optional}</label>
+              <select value={format} onChange={(e) => setFormat(e.target.value)} className={field}>
+                <option value="">None</option>
+                {FORMATS.map((f) => (
+                  <option key={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={label}>Theme {optional}</label>
+              <select value={theme} onChange={(e) => setTheme(e.target.value)} className={field}>
+                <option value="">None</option>
+                {THEMES.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
           >
             Cancel
           </button>
@@ -189,9 +184,10 @@ export default function UploadFileModal({ onClose, onUpload }) {
           <button
             onClick={handleUpload}
             disabled={!file || uploading}
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {uploading ? "Processing..." : "Add to library"}
+            {uploading && <Loader2 size={14} className="animate-spin" />}
+            {uploading ? "Adding to library…" : "Add to library"}
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { API_URL } from "../api";
 
 const EMPTY_ROW = {
@@ -75,42 +75,54 @@ export default function RubricEditor({ file, onClose }) {
     }
   };
 
-  const cell = "w-full rounded border border-slate-300 px-1.5 py-1 text-sm";
+  const cell =
+    "w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white p-5 shadow-xl">
-        <div className="mb-1 flex items-center justify-between">
-          <p className="text-base font-medium text-slate-900">
-            Rubric bands · {file.filename}
-          </p>
-          <button onClick={onClose} aria-label="Close">
-            <X size={18} className="text-slate-400 hover:text-slate-600" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-[2px]">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-slate-900">Rubric bands</h2>
+            <p className="mt-0.5 truncate text-sm text-slate-500">
+              {file.filename} · check the AI's draft against the rubric and fix
+              any mistakes before saving
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X size={18} />
           </button>
         </div>
-        <p className="mb-4 text-sm text-slate-500">
-          Check the bands against the rubric and fix any mistakes before saving.
-        </p>
 
         {status === "loading" && (
-          <p className="py-10 text-center text-sm text-slate-400">Loading…</p>
+          <p className="py-16 text-center text-sm text-slate-500">Loading…</p>
         )}
         {status === "extracting" && (
-          <p className="py-10 text-center text-sm text-slate-400">
-            Extracting bands with AI… this can take up to a minute.
-          </p>
+          <div className="py-16 text-center">
+            <Loader2 size={24} className="mx-auto animate-spin text-teal-600" />
+            <p className="mt-3 text-sm font-medium text-slate-700">
+              Reading the rubric…
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              This can take up to a minute.
+            </p>
+          </div>
         )}
 
         {(status === "ready" || status === "saving") && (
-          <div className="flex-1 overflow-y-auto">
+          <div className="-mx-1 flex-1 overflow-y-auto px-1">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs text-slate-500">
+              <thead className="sticky top-0 bg-white text-xs font-semibold text-slate-500">
                 <tr>
-                  <th className="w-32 pb-2 font-normal">Criterion</th>
-                  <th className="w-16 pb-2 font-normal">Band</th>
-                  <th className="w-16 pb-2 font-normal">Min</th>
-                  <th className="w-16 pb-2 font-normal">Max</th>
-                  <th className="pb-2 font-normal">Descriptor</th>
+                  <th className="w-32 pb-2 font-semibold">Criterion</th>
+                  <th className="w-16 pb-2 font-semibold">Band</th>
+                  <th className="w-16 pb-2 font-semibold">Min</th>
+                  <th className="w-16 pb-2 font-semibold">Max</th>
+                  <th className="pb-2 font-semibold">Descriptor</th>
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -146,7 +158,7 @@ export default function RubricEditor({ file, onClose }) {
                       <button
                         onClick={() => setRows(rows.filter((_, j) => j !== i))}
                         aria-label="Delete row"
-                        className="mt-1.5 text-slate-400 hover:text-red-600"
+                        className="mt-1 rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -157,7 +169,7 @@ export default function RubricEditor({ file, onClose }) {
             </table>
             <button
               onClick={() => setRows([...rows, EMPTY_ROW])}
-              className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700"
+              className="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-teal-700 hover:bg-teal-50"
             >
               <Plus size={16} /> Add row
             </button>
@@ -166,25 +178,25 @@ export default function RubricEditor({ file, onClose }) {
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
           <button
             onClick={runExtraction}
             disabled={status !== "ready"}
-            className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
           >
             <Sparkles size={16} /> Re-extract with AI
           </button>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={status !== "ready"}
-              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {status === "saving" ? "Saving…" : "Save bands"}
             </button>

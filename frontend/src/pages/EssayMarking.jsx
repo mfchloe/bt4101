@@ -14,11 +14,11 @@ import { API_URL as API_BASE_URL } from "../api";
  *
  * {
  *   rubric: "G2 rubric",
+ *   rubricBands: [{ criterion, band, min_mark, max_mark, descriptor }],  // rows from rubric_bands
  *   essays: [{
  *     id, studentName, text,
  *     source: "ocr" | "typed",
- *     flag: "Borderline" | null,
- *     criteria: [{ name, score, max, note }],
+ *     criteria: [{ name, score, max, note }],  // Content /10, Language /20; note = AI's reason
  *     feedback: "Overall feedback...",
  *     annotations: [{
  *       id,

@@ -28,9 +28,9 @@ export const ANNOTATION_TYPES = {
   },
   strength: {
     label: "Strength",
-    mark: "bg-emerald-100 decoration-emerald-500",
-    badge: "bg-emerald-50 text-emerald-700",
-    dot: "bg-emerald-400",
+    mark: "bg-teal-100 decoration-teal-500",
+    badge: "bg-teal-50 text-teal-700",
+    dot: "bg-teal-500",
   },
 };
 

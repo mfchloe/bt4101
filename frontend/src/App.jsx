@@ -17,7 +17,7 @@ export default function App() {
   const Page = PAGES[active];
 
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="flex h-screen flex-col bg-mist">
       <NavBar active={active} onChange={setActive} />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <Page />

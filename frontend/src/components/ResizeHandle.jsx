@@ -21,8 +21,8 @@ export default function ResizeHandle({ isDragging, label, ...props }) {
       <span
         className={`pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 transition-all ${
           isDragging
-            ? "w-1 bg-indigo-500"
-            : "w-px group-hover:w-1 group-hover:bg-indigo-400 group-focus-visible:w-1 group-focus-visible:bg-indigo-400"
+            ? "w-1 bg-teal-500"
+            : "w-px group-hover:w-1 group-hover:bg-teal-400 group-focus-visible:w-1 group-focus-visible:bg-teal-400"
         }`}
       />
 

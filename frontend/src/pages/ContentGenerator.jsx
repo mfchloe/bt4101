@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Upload, Paperclip, RefreshCw, Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Paperclip, RefreshCw, Sparkles, Upload } from "lucide-react";
 import ResizeHandle from "../components/ResizeHandle";
 import useResizableWidth from "../hooks/useResizableWidth";
 
@@ -57,8 +57,8 @@ export default function ContentGenerator() {
   const fileInputRef = useRef(null);
 
   const settingsPanel = useResizableWidth({
-    initial: 260,
-    min: 220,
+    initial: 340,
+    min: 280,
     max: 520,
     edge: "right",
   });
@@ -237,26 +237,30 @@ export default function ContentGenerator() {
       {/* LEFT: GENERATION SETTINGS */}
       <div
         style={{ width: settingsPanel.width }}
-        className="shrink-0 overflow-y-auto p-5"
+        className="shrink-0 overflow-y-auto bg-white px-6 py-7"
       >
-        <p className="mb-4 text-[15px] font-medium text-slate-900">
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900">
           Generate material
+        </h1>
+        <p className="mb-6 mt-1 text-sm text-slate-500">
+          Drafts are grounded in your file library.
         </p>
 
         {/* BAND */}
-        <label className="mb-1.5 block text-xs text-slate-500">
+        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
           Full SBB band
         </label>
 
-        <div className="mb-3.5 flex gap-1.5">
+        <div className="mb-4 flex gap-1 rounded-lg bg-slate-100 p-1">
           {SBB_LEVELS.map((b) => (
             <button
               key={b}
               onClick={() => setBand(b)}
-              className={`flex-1 rounded-md border px-2 py-1 text-sm ${
+              aria-pressed={band === b}
+              className={`flex-1 rounded-md px-2 py-1.5 text-sm font-semibold transition-colors ${
                 band === b
-                  ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                  : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                  ? "bg-white text-teal-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {b}
@@ -265,30 +269,30 @@ export default function ContentGenerator() {
         </div>
 
         {/* MATERIAL TYPE */}
-        <label className="mb-1 block text-xs text-slate-500">
+        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
           Material type
         </label>
 
         <select
           value={materialType}
           onChange={(e) => setMaterialType(e.target.value)}
-          className="mb-3.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          className="mb-4 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         >
           {MATERIAL_TYPES.map((m) => (
             <option key={m.name}>{m.name}</option>
           ))}
         </select>
-        <p className="-mt-2.5 mb-3.5 text-xs text-slate-400">
+        <p className="-mt-2.5 mb-4 text-xs leading-5 text-slate-500">
           {selectedMaterial.description}
         </p>
 
         {/* FORMAT */}
-        <label className="mb-1 block text-xs text-slate-500">Format</label>
+        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Format</label>
 
         <select
           value={format}
           onChange={(e) => setFormat(e.target.value)}
-          className="mb-3.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          className="mb-4 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         >
           <option value="">Any format</option>
           {FORMATS.map((f) => (
@@ -297,12 +301,12 @@ export default function ContentGenerator() {
         </select>
 
         {/* THEME */}
-        <label className="mb-1 block text-xs text-slate-500">Theme</label>
+        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Theme</label>
 
         <select
           value={theme}
           onChange={(e) => setTheme(e.target.value)}
-          className="mb-3.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          className="mb-4 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         >
           <option value="">Any theme</option>
           {THEMES.map((t) => (
@@ -311,7 +315,7 @@ export default function ContentGenerator() {
         </select>
 
         {/* INSTRUCTIONS */}
-        <label className="mb-1 block text-xs text-slate-500">
+        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
           Additional instructions
         </label>
 
@@ -319,16 +323,20 @@ export default function ContentGenerator() {
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder={selectedMaterial.placeholder}
-          className="mb-3.5 min-h-[60px] w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          className="mb-4 min-h-[80px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         />
 
-        {/* SESSION FILE */}
+        {/* SESSION FILES */}
+        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+          Session files{" "}
+          <span className="font-normal text-slate-400">· this lesson only</span>
+        </label>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-300 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:border-teal-300 hover:bg-teal-50/40 hover:text-teal-700"
         >
           <Upload size={15} />
-          Upload session files
+          Add slides or notes
         </button>
 
         <input
@@ -351,11 +359,11 @@ export default function ContentGenerator() {
         />
 
         {sessionFiles.length > 0 && (
-          <div className="mb-3.5 space-y-1">
+          <div className="mb-4 space-y-1">
             {sessionFiles.map((file) => (
               <div
                 key={`${file.name}-${file.size}`}
-                className="flex items-center gap-1 text-xs text-slate-400"
+                className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600"
               >
                 <Paperclip size={13} />
 
@@ -366,7 +374,7 @@ export default function ContentGenerator() {
                     setSessionFiles((current) => current.filter((f) => f !== file))
                   }
                   aria-label={`Remove ${file.name}`}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-base leading-none text-slate-400 hover:text-slate-700"
                 >
                   ×
                 </button>
@@ -379,21 +387,24 @@ export default function ContentGenerator() {
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-indigo-600 py-1.5 text-sm text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isGenerating ? (
             <>
-              <Loader2 size={14} className="animate-spin" />
-              Generating...
+              <Loader2 size={15} className="animate-spin" />
+              Generating…
             </>
           ) : (
-            "Generate ↗"
+            <>
+              <Sparkles size={15} />
+              Generate
+            </>
           )}
         </button>
 
         {/* ERROR */}
         {error && (
-          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-600">
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
             {error}
           </div>
         )}
@@ -406,35 +417,37 @@ export default function ContentGenerator() {
       />
 
       {/* RIGHT: PREVIEW */}
-      <div className="min-w-0 flex-1 overflow-y-auto p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Preview — {[band, theme.toLowerCase(), materialType.toLowerCase()]
-              .filter(Boolean)
-              .join(" ")}
+      <div className="min-w-0 flex-1 overflow-y-auto px-8 py-7">
+        <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between">
+          <p className="text-sm font-medium text-slate-500">
+            Preview · {[band, theme, materialType].filter(Boolean).join(" · ")}
           </p>
 
           <button
             onClick={handleExport}
             disabled={!generatedMaterial}
-            className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Download size={14} />
             Export
           </button>
         </div>
 
-        <div className="min-h-[280px] rounded-md border border-slate-200 bg-slate-50 p-4">
+        <div className="mx-auto min-h-[420px] max-w-3xl rounded-xl border border-slate-200 bg-white px-10 py-9 shadow-sm">
           {/* BEFORE GENERATION */}
           {!generatedMaterial && !isGenerating && (
-            <div className="flex min-h-[250px] items-center justify-center">
-              <div className="text-center">
-                <p className="text-sm font-medium text-slate-700">
-                  No material generated yet
+            <div className="flex min-h-[340px] items-center justify-center">
+              <div className="max-w-xs text-center">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-600">
+                  <Sparkles size={22} />
+                </span>
+                <p className="mt-4 text-sm font-semibold text-slate-800">
+                  Nothing generated yet
                 </p>
 
-                <p className="mt-1 text-xs text-slate-400">
-                  Configure the material and click Generate.
+                <p className="mt-1 text-sm text-slate-500">
+                  Pick a band and material type on the left, then press
+                  Generate.
                 </p>
               </div>
             </div>
@@ -442,18 +455,18 @@ export default function ContentGenerator() {
 
           {/* LOADING */}
           {isGenerating && (
-            <div className="flex min-h-[250px] items-center justify-center">
+            <div className="flex min-h-[340px] items-center justify-center">
               <div className="text-center">
                 <Loader2
                   size={24}
-                  className="mx-auto animate-spin text-indigo-600"
+                  className="mx-auto animate-spin text-teal-600"
                 />
 
                 <p className="mt-3 text-sm font-medium text-slate-700">
-                  Generating material...
+                  Generating material…
                 </p>
 
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-sm text-slate-500">
                   Retrieving relevant resources and generating content.
                 </p>
               </div>
@@ -463,14 +476,13 @@ export default function ContentGenerator() {
           {/* GENERATED CONTENT */}
           {generatedMaterial && !isGenerating && (
             <>
-              <div className="mb-4">
-                <p className="text-base font-medium text-slate-900">
+              <div className="mb-6 border-b border-slate-100 pb-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
+                  {band} · {materialType}
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
                   {theme ? `${theme} ${materialType.toLowerCase()}` : materialType}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Generated for {band}
-                </p>
+                </h2>
               </div>
 
               {/* If sections were detected, display them individually */}
@@ -478,29 +490,28 @@ export default function ContentGenerator() {
                 sections.map((section, index) => (
                   <div
                     key={`${section.title}-${index}`}
-                    className="mb-2.5 rounded-md border border-slate-200 bg-white p-3 last:mb-0"
+                    className="group mb-6 last:mb-0"
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-900">
+                      <h3 className="text-base font-semibold text-slate-900">
                         {section.title}
-                      </p>
+                      </h3>
 
                       <button
                         onClick={() => handleRegenerateSection(section.title)}
                         aria-label="Regenerate section"
-                        className="rounded p-1 hover:bg-indigo-50"
+                        title="Regenerate this section"
+                        className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-teal-700 opacity-0 transition-opacity hover:bg-teal-50 focus-visible:opacity-100 group-hover:opacity-100"
                       >
-                        <RefreshCw
-                          size={14}
-                          className="text-indigo-600 hover:text-indigo-700"
-                        />
+                        <RefreshCw size={13} />
+                        Regenerate
                       </button>
                     </div>
 
                     <textarea
                       value={section.body.trim()}
                       readOnly
-                      className="mt-2 min-h-[100px] w-full resize-y border-0 bg-transparent p-0 text-sm leading-6 text-slate-600 outline-none"
+                      className="mt-2 min-h-[100px] w-full resize-y border-0 bg-transparent p-0 text-[15px] leading-7 text-slate-700 shadow-none outline-none"
                     />
                   </div>
                 ))
@@ -512,14 +523,14 @@ export default function ContentGenerator() {
                 <textarea
                   value={generatedMaterial}
                   onChange={(e) => setGeneratedMaterial(e.target.value)}
-                  className="min-h-[400px] w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 outline-none focus:border-indigo-300"
+                  className="min-h-[400px] w-full resize-y rounded-lg border border-slate-200 bg-white p-4 text-[15px] leading-7 text-slate-700"
                 />
               )}
 
               {/* SOURCES */}
               {sources.length > 0 && (
-                <div className="mt-5 border-t border-slate-200 pt-4">
-                  <p className="mb-2 text-xs font-medium text-slate-500">
+                <div className="mt-8 border-t border-slate-100 pt-5">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Resources used
                   </p>
 
@@ -527,14 +538,14 @@ export default function ContentGenerator() {
                     {sources.map((source, index) => (
                       <div
                         key={`${source.source_file}-${index}`}
-                        className="flex items-center gap-2 text-xs text-slate-400"
+                        className="flex items-center gap-2 text-sm text-slate-600"
                       >
-                        <Paperclip size={12} />
+                        <Paperclip size={13} className="text-slate-400" />
 
                         <span>{source.source_file}</span>
 
                         {source.document_type && (
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5">
+                          <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700">
                             {source.document_type}
                           </span>
                         )}

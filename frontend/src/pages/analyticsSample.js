@@ -7,7 +7,6 @@
 
 export const CLASS_NAME = "2A";
 export const MAX_TOTAL = 30;
-export const AT_RISK_BELOW = 12; // totals below this are flagged as at risk
 
 export const ASSIGNMENTS = [
   { id: "a1", title: "Social media and teenagers", format: "Argumentative", theme: "Technology", date: "12 Jul" },

@@ -21,3 +21,7 @@ export const FORMATS = [
   "Discursive",
   "Hybrid",
 ];
+
+// Essays with a total at or below this mark (out of 30) are flagged as at risk,
+// on both the essay marking and analytics pages
+export const AT_RISK_MAX = 17;

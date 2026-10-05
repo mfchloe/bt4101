@@ -6,7 +6,7 @@
  *   Coral #F26B4E  teacher actions: override, edits (coral-500)
  *   Ink   #14262E  text and headings (slate-900)
  *   Mist  #EAF3F2  page background (mist)
- *   Amber #F2B33D  borderline flags, weak criteria, warnings (amber-400)
+ *   Amber #F2B33D  at-risk flags, weak criteria, warnings (amber-400)
  *
  * Tailwind's teal, amber and slate scales are replaced with brand-tuned
  * versions, so existing classes like text-slate-500 pick up the Ink tint.

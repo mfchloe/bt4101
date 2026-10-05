@@ -24,7 +24,7 @@ export default function EssayUploadForm({
   isMarking,
   error,
 }) {
-  // Blank theme/format = let the system infer it
+  // The teacher must choose both before marking
   const [format, setFormat] = useState("");
   const [theme, setTheme] = useState("");
   const [band, setBand] = useState("G2");
@@ -64,6 +64,13 @@ export default function EssayUploadForm({
     if (!isMarking) addFiles(e.dataTransfer.files);
   };
 
+  // Everything the teacher still has to fill in before marking
+  const missing = [
+    !format && "a format",
+    !theme && "a theme",
+    essays.length === 0 && "at least one essay",
+  ].filter(Boolean);
+
   const handleSubmit = () =>
     onSubmit({
       rubric: `${band} rubric`,
@@ -85,7 +92,9 @@ export default function EssayUploadForm({
       <div className="grid gap-5 lg:grid-cols-2">
         {/* ASSIGNMENT */}
         <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="mb-5 text-base font-semibold text-slate-900">Assignment</h2>
+          <h2 className="mb-5 text-base font-semibold text-slate-900">
+            Assignment
+          </h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -98,7 +107,9 @@ export default function EssayUploadForm({
                 disabled={isMarking}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
               >
-                <option value="">Infer automatically</option>
+                <option value="" disabled>
+                  Select a format
+                </option>
                 {FORMATS.map((f) => (
                   <option key={f}>{f}</option>
                 ))}
@@ -115,7 +126,9 @@ export default function EssayUploadForm({
                 disabled={isMarking}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
               >
-                <option value="">Infer automatically</option>
+                <option value="" disabled>
+                  Select a theme
+                </option>
                 {THEMES.map((t) => (
                   <option key={t}>{t}</option>
                 ))}
@@ -148,8 +161,8 @@ export default function EssayUploadForm({
 
           <p className="mt-3 text-xs text-slate-500">
             Scored against the{" "}
-            <span className="font-semibold text-slate-700">{band} rubric</span> in
-            your library
+            <span className="font-semibold text-slate-700">{band} rubric</span>{" "}
+            in your library
           </p>
 
           <label className="mb-1.5 mt-5 block text-xs font-semibold text-slate-700">
@@ -164,7 +177,8 @@ export default function EssayUploadForm({
           />
 
           <label className="mb-1.5 mt-4 block text-xs font-semibold text-slate-700">
-            Marking focus <span className="font-normal text-slate-400">· optional</span>
+            Marking focus{" "}
+            <span className="font-normal text-slate-400">· optional</span>
           </label>
           <textarea
             value={instructions}
@@ -194,9 +208,7 @@ export default function EssayUploadForm({
             onDragLeave={() => setIsDraggingOver(false)}
             onDrop={handleDrop}
             className={`flex min-h-44 flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-9 text-center transition-colors ${
-              isDraggingOver
-                ? "border-teal-400 bg-teal-50"
-                : "border-slate-200"
+              isDraggingOver ? "border-teal-400 bg-teal-50" : "border-slate-200"
             }`}
           >
             <FileUp size={28} className="text-teal-600" />
@@ -274,25 +286,34 @@ export default function EssayUploadForm({
           Try it with sample essays
         </button>
 
-        <button
-          onClick={handleSubmit}
-          disabled={isMarking || essays.length === 0}
-          className="flex items-center gap-2 rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isMarking ? (
-            <>
-              <Loader2 size={15} className="animate-spin" />
-              Marking {essays.length} essay{essays.length === 1 ? "" : "s"}…
-            </>
-          ) : (
-            <>
-              <ClipboardCheck size={15} />
-              {essays.length
-                ? `Mark ${essays.length} essay${essays.length === 1 ? "" : "s"}`
-                : "Mark essays"}
-            </>
+        <div className="flex items-center gap-3">
+          {missing.length > 0 && !isMarking && (
+            <p className="text-xs text-slate-500">
+              Add {missing.slice(0, -1).join(", ")}
+              {missing.length > 1 ? " and " : ""}
+              {missing.at(-1)} to continue
+            </p>
           )}
-        </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isMarking || missing.length > 0}
+            className="flex items-center gap-2 rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isMarking ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                Marking {essays.length} essay{essays.length === 1 ? "" : "s"}…
+              </>
+            ) : (
+              <>
+                <ClipboardCheck size={15} />
+                {essays.length
+                  ? `Mark ${essays.length} essay${essays.length === 1 ? "" : "s"}`
+                  : "Mark essays"}
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

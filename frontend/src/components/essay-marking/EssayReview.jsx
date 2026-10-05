@@ -15,15 +15,13 @@ import {
   X,
 } from "lucide-react";
 import ResizeHandle from "../ResizeHandle";
+import { AT_RISK_MAX } from "../../options";
 import useResizableWidth from "../../hooks/useResizableWidth";
 import {
   ANNOTATION_TYPES,
   buildSegments,
   getAnnotationType,
 } from "./annotations";
-
-// A total within this many marks of half marks (e.g. 15/30) is flagged as borderline
-const BORDERLINE_RANGE = 2;
 
 const initialsOf = (name) =>
   name
@@ -87,7 +85,7 @@ export default function EssayReview({ result, onNewBatch }) {
 
   const total = current.criteria.reduce((sum, c) => sum + c.score, 0);
   const maxTotal = current.criteria.reduce((sum, c) => sum + c.max, 0);
-  const isBorderline = Math.abs(total - maxTotal / 2) <= BORDERLINE_RANGE;
+  const isAtRisk = total <= AT_RISK_MAX;
 
   // Bring the selected highlight and its comment card into view
   useEffect(() => {
@@ -367,13 +365,13 @@ export default function EssayReview({ result, onNewBatch }) {
         </div>
 
         <div className="flex items-center gap-3.5">
-          {isBorderline && (
+          {isAtRisk && (
             <span
-              title={`Within ${BORDERLINE_RANGE} marks of ${maxTotal / 2}/${maxTotal}`}
+              title={`Total of ${AT_RISK_MAX}/${maxTotal} or below`}
               className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
             >
               <AlertTriangle size={13} />
-              Borderline
+              At risk
             </span>
           )}
           <p className="font-display text-lg font-semibold text-slate-900">

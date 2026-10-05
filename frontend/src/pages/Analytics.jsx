@@ -12,10 +12,10 @@ import {
 import { AlertTriangle, ArrowUp, Sparkles } from "lucide-react";
 import {
   ASSIGNMENTS,
-  AT_RISK_BELOW,
   ESSAYS,
   MAX_TOTAL,
 } from "./analyticsSample";
+import { AT_RISK_MAX } from "../options";
 
 const C = {
   accent: "var(--color-teal-600)",
@@ -78,7 +78,7 @@ export default function Analytics() {
       .sort((a, b) => a.total - b.total);
   }, [essays]);
 
-  const atRisk = students.filter((s) => s.total < AT_RISK_BELOW);
+  const atRisk = students.filter((s) => s.total <= AT_RISK_MAX);
 
   // Number of essays in each 3-mark range of the total
   const bins = Array.from({ length: 10 }, (_, i) => {
@@ -87,7 +87,7 @@ export default function Analytics() {
     return {
       range: `${lo}–${hi}`,
       count: essays.filter((e) => e.total >= lo && e.total <= hi).length,
-      atRisk: hi < AT_RISK_BELOW,
+      atRisk: hi <= AT_RISK_MAX,
     };
   });
 
@@ -137,7 +137,7 @@ export default function Analytics() {
           <StatTile
             label="At-risk students"
             value={atRisk.length}
-            warn={atRisk.length ? `below ${AT_RISK_BELOW}` : null}
+            warn={atRisk.length ? `${AT_RISK_MAX} and below` : null}
           />
         </div>
 
@@ -194,7 +194,7 @@ export default function Analytics() {
             <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
               <span className="h-2.5 w-2.5 rounded-sm" style={{ background: C.warning }} />
               <AlertTriangle size={12} className="text-amber-600" />
-              At risk: below {AT_RISK_BELOW} / {MAX_TOTAL}
+              At risk: {AT_RISK_MAX} / {MAX_TOTAL} and below
             </p>
           </section>
 
@@ -211,7 +211,7 @@ export default function Analytics() {
                     <p className="truncate text-sm font-medium text-slate-800">{s.name}</p>
                     <p className="truncate text-xs text-slate-500">{s.issue}</p>
                   </div>
-                  {s.total < AT_RISK_BELOW && (
+                  {s.total <= AT_RISK_MAX && (
                     <AlertTriangle
                       size={14}
                       className="shrink-0 text-amber-600"

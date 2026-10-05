@@ -30,6 +30,11 @@ const MATERIAL_TYPES = [
     placeholder: "e.g. 5 essay prompts with a mix of difficulty levels",
   },
   {
+    name: "Podcast",
+    description: "A script for students to listen to, e.g. a discussion of a topic or model essay",
+    placeholder: "e.g. 5-minute two-host discussion on both sides of the topic",
+  },
+  {
     name: "Others",
     description: "Anything else; describe what you need below",
     placeholder: "Describe the material you want, e.g. a vocabulary list on the theme",

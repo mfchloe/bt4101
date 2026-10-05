@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { FileUp, FileText, X } from "lucide-react";
 import { API_URL } from "../api";
+import { FORMATS, SBB_LEVELS, THEMES } from "../options";
 
 const DOC_TYPES = ["Model essay", "Rubric", "Lesson notes", "Marked essay"];
-const SBB_LEVELS = ["G1", "G2", "G3"];
 
 export default function UploadFileModal({ onClose, onUpload }) {
   const [docType, setDocType] = useState(DOC_TYPES[0]);
@@ -148,12 +148,16 @@ export default function UploadFileModal({ onClose, onUpload }) {
               Theme <span className="text-slate-400">· optional</span>
             </label>
 
-            <input
+            <select
               value={theme}
               onChange={(e) => setTheme(e.target.value)}
-              placeholder="Environment"
               className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
+            >
+              <option value="">None</option>
+              {THEMES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -161,12 +165,16 @@ export default function UploadFileModal({ onClose, onUpload }) {
               Format <span className="text-slate-400">· optional</span>
             </label>
 
-            <input
+            <select
               value={format}
               onChange={(e) => setFormat(e.target.value)}
-              placeholder="Long answer"
               className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
+            >
+              <option value="">None</option>
+              {FORMATS.map((f) => (
+                <option key={f}>{f}</option>
+              ))}
+            </select>
           </div>
         </div>
 

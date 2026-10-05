@@ -3,19 +3,49 @@ import { Upload, Paperclip, RefreshCw, Download, Loader2 } from "lucide-react";
 import ResizeHandle from "../components/ResizeHandle";
 import useResizableWidth from "../hooks/useResizableWidth";
 
-const BANDS = ["G1", "G2", "G3"];
-
 import { API_URL as API_BASE_URL } from "../api";
+import { FORMATS, SBB_LEVELS, THEMES } from "../options";
+
+// Each material type has a short description and an example instruction
+const MATERIAL_TYPES = [
+  {
+    name: "Worksheet",
+    description: "Student-facing practice",
+    placeholder: "e.g. Essay planning and breakdown for a discursive question",
+  },
+  {
+    name: "Lesson plan",
+    description:
+      "Teacher-facing, with objectives, a sequence of activities, timings and differentiation notes",
+    placeholder: "e.g. 50-minute lesson introducing argumentative essay structure",
+  },
+  {
+    name: "Lesson activity",
+    description: "In-class tasks such as discussions, peer review, starters and exit tickets",
+    placeholder: "e.g. Peer review activity for introductions, in pairs",
+  },
+  {
+    name: "Questions and assessments",
+    description: "Essay prompts, short-answer questions and quizzes",
+    placeholder: "e.g. 5 essay prompts with a mix of difficulty levels",
+  },
+  {
+    name: "Others",
+    description: "Anything else; describe what you need below",
+    placeholder: "Describe the material you want, e.g. a vocabulary list on the theme",
+  },
+];
 
 export default function ContentGenerator() {
   const [band, setBand] = useState("G1");
-  const [materialType, setMaterialType] = useState("Worksheet");
-  const [theme, setTheme] = useState("Persuasive writing");
-  const [format, setFormat] = useState("Short answer");
+  const [materialType, setMaterialType] = useState(MATERIAL_TYPES[0].name);
+  const [theme, setTheme] = useState("");
+  const [format, setFormat] = useState("");
   const [instructions, setInstructions] = useState("");
+  const selectedMaterial = MATERIAL_TYPES.find((m) => m.name === materialType);
 
-  // Store the actual File object, not just its filename
-  const [sessionFile, setSessionFile] = useState(null);
+  // Store the actual File objects, not just their filenames
+  const [sessionFiles, setSessionFiles] = useState([]);
 
   // Generated content
   const [generatedMaterial, setGeneratedMaterial] = useState("");
@@ -53,9 +83,7 @@ export default function ContentGenerator() {
 
       // Session file is temporary context.
       // It is NOT automatically added to the permanent vector store.
-      if (sessionFile) {
-        formData.append("sessionFile", sessionFile);
-      }
+      sessionFiles.forEach((file) => formData.append("sessionFiles", file));
 
       const response = await fetch(`${API_BASE_URL}/api/lesson/generate`, {
         method: "POST",
@@ -147,10 +175,10 @@ export default function ContentGenerator() {
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${theme.replace(/\s+/g, "_")}_${materialType.replace(
-      /\s+/g,
-      "_",
-    )}.txt`;
+    link.download = `${[theme, materialType]
+      .filter(Boolean)
+      .join("_")
+      .replace(/\s+/g, "_")}.txt`;
 
     document.body.appendChild(link);
     link.click();
@@ -221,7 +249,7 @@ export default function ContentGenerator() {
         </label>
 
         <div className="mb-3.5 flex gap-1.5">
-          {BANDS.map((b) => (
+          {SBB_LEVELS.map((b) => (
             <button
               key={b}
               onClick={() => setBand(b)}
@@ -246,28 +274,41 @@ export default function ContentGenerator() {
           onChange={(e) => setMaterialType(e.target.value)}
           className="mb-3.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
         >
-          <option>Worksheet</option>
-          <option>Lesson activity</option>
-          <option>Practice questions</option>
+          {MATERIAL_TYPES.map((m) => (
+            <option key={m.name}>{m.name}</option>
+          ))}
+        </select>
+        <p className="-mt-2.5 mb-3.5 text-xs text-slate-400">
+          {selectedMaterial.description}
+        </p>
+
+        {/* FORMAT */}
+        <label className="mb-1 block text-xs text-slate-500">Format</label>
+
+        <select
+          value={format}
+          onChange={(e) => setFormat(e.target.value)}
+          className="mb-3.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        >
+          <option value="">Any format</option>
+          {FORMATS.map((f) => (
+            <option key={f}>{f}</option>
+          ))}
         </select>
 
         {/* THEME */}
         <label className="mb-1 block text-xs text-slate-500">Theme</label>
 
-        <input
+        <select
           value={theme}
           onChange={(e) => setTheme(e.target.value)}
           className="mb-3.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-        />
-
-        {/* FORMAT */}
-        <label className="mb-1 block text-xs text-slate-500">Format</label>
-
-        <input
-          value={format}
-          onChange={(e) => setFormat(e.target.value)}
-          className="mb-3.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-        />
+        >
+          <option value="">Any theme</option>
+          {THEMES.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
+        </select>
 
         {/* INSTRUCTIONS */}
         <label className="mb-1 block text-xs text-slate-500">
@@ -277,7 +318,7 @@ export default function ContentGenerator() {
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="Focus on counter-argument structure"
+          placeholder={selectedMaterial.placeholder}
           className="mb-3.5 min-h-[60px] w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
         />
 
@@ -287,35 +328,50 @@ export default function ContentGenerator() {
           className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-300 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
         >
           <Upload size={15} />
-          Upload session file
+          Upload session files
         </button>
 
         <input
           ref={fileInputRef}
           type="file"
           accept=".pdf,.docx,.pptx,.txt,.md"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-
-            if (file) {
-              setSessionFile(file);
-            }
+            const added = Array.from(e.target.files);
+            // Skip files that are already attached
+            setSessionFiles((current) => [
+              ...current,
+              ...added.filter(
+                (f) => !current.some((c) => c.name === f.name && c.size === f.size),
+              ),
+            ]);
+            e.target.value = ""; // allow re-adding a file after removing it
           }}
         />
 
-        {sessionFile && (
-          <div className="mb-3.5 flex items-center gap-1 text-xs text-slate-400">
-            <Paperclip size={13} />
+        {sessionFiles.length > 0 && (
+          <div className="mb-3.5 space-y-1">
+            {sessionFiles.map((file) => (
+              <div
+                key={`${file.name}-${file.size}`}
+                className="flex items-center gap-1 text-xs text-slate-400"
+              >
+                <Paperclip size={13} />
 
-            <span className="min-w-0 flex-1 truncate">{sessionFile.name}</span>
+                <span className="min-w-0 flex-1 truncate">{file.name}</span>
 
-            <button
-              onClick={() => setSessionFile(null)}
-              className="text-slate-400 hover:text-slate-600"
-            >
-              ×
-            </button>
+                <button
+                  onClick={() =>
+                    setSessionFiles((current) => current.filter((f) => f !== file))
+                  }
+                  aria-label={`Remove ${file.name}`}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -353,7 +409,9 @@ export default function ContentGenerator() {
       <div className="min-w-0 flex-1 overflow-y-auto p-5">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            Preview — {band} {theme.toLowerCase()} {materialType.toLowerCase()}
+            Preview — {[band, theme.toLowerCase(), materialType.toLowerCase()]
+              .filter(Boolean)
+              .join(" ")}
           </p>
 
           <button
@@ -407,7 +465,7 @@ export default function ContentGenerator() {
             <>
               <div className="mb-4">
                 <p className="text-base font-medium text-slate-900">
-                  {theme} {materialType.toLowerCase()}
+                  {theme ? `${theme} ${materialType.toLowerCase()}` : materialType}
                 </p>
 
                 <p className="mt-1 text-xs text-slate-400">

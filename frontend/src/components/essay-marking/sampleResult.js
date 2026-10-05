@@ -3,7 +3,7 @@
  * "Preview with sample essays" link while the backend is being built.
  */
 export const SAMPLE_RESULT = {
-  rubric: "Persuasive essay G2",
+  rubric: "G2 rubric",
   essays: [
     {
       id: "sample-1",

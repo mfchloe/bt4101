@@ -1,8 +1,7 @@
 import { useRef, useState } from "react";
 import { FileText, FileUp, Loader2, X } from "lucide-react";
+import { FORMATS, SBB_LEVELS, THEMES } from "../../options";
 
-const BANDS = ["G1", "G2", "G3"];
-const ESSAY_TYPES = ["Persuasive essay", "Narrative essay", "Expository essay"];
 const ACCEPTED_FILES = ".pdf,.docx,.txt,.jpg,.jpeg,.png";
 
 // "tan_wei_ling-essay.pdf" -> "Tan Wei Ling Essay"
@@ -24,7 +23,9 @@ export default function EssayUploadForm({
   isMarking,
   error,
 }) {
-  const [essayType, setEssayType] = useState(ESSAY_TYPES[0]);
+  // Blank theme/format = let the system infer it
+  const [format, setFormat] = useState("");
+  const [theme, setTheme] = useState("");
   const [band, setBand] = useState("G2");
   const [question, setQuestion] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -64,8 +65,9 @@ export default function EssayUploadForm({
 
   const handleSubmit = () =>
     onSubmit({
-      rubric: `${essayType} ${band}`,
-      essayType,
+      rubric: `${band} rubric`,
+      format,
+      theme,
       band,
       question,
       instructions,
@@ -89,15 +91,33 @@ export default function EssayUploadForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-slate-500">
-                Essay type
+                Format
               </label>
               <select
-                value={essayType}
-                onChange={(e) => setEssayType(e.target.value)}
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
                 disabled={isMarking}
                 className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
               >
-                {ESSAY_TYPES.map((t) => (
+                <option value="">Infer automatically</option>
+                {FORMATS.map((f) => (
+                  <option key={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">
+                Theme
+              </label>
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                disabled={isMarking}
+                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              >
+                <option value="">Infer automatically</option>
+                {THEMES.map((t) => (
                   <option key={t}>{t}</option>
                 ))}
               </select>
@@ -108,7 +128,7 @@ export default function EssayUploadForm({
                 Full SBB band
               </label>
               <div className="flex gap-1.5">
-                {BANDS.map((b) => (
+                {SBB_LEVELS.map((b) => (
                   <button
                     key={b}
                     onClick={() => setBand(b)}
@@ -127,7 +147,7 @@ export default function EssayUploadForm({
           </div>
 
           <p className="mt-2 text-xs text-slate-400">
-            Rubric: {essayType} {band}
+            Rubric: {band} rubric
           </p>
 
           <label className="mb-1 mt-4 block text-xs text-slate-500">

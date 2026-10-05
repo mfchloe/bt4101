@@ -13,7 +13,7 @@ import { API_URL as API_BASE_URL } from "../api";
  * POST /api/essays/mark is expected to return:
  *
  * {
- *   rubric: "Persuasive essay G2",
+ *   rubric: "G2 rubric",
  *   essays: [{
  *     id, studentName, text,
  *     source: "ocr" | "typed",
@@ -39,7 +39,8 @@ export default function EssayMarking() {
 
   const handleMark = async ({
     rubric,
-    essayType,
+    format,
+    theme,
     band,
     question,
     instructions,
@@ -52,7 +53,8 @@ export default function EssayMarking() {
       const formData = new FormData();
 
       formData.append("rubric", rubric);
-      formData.append("essayType", essayType);
+      formData.append("format", format);
+      formData.append("theme", theme);
       formData.append("band", band);
       formData.append("question", question);
       formData.append("instructions", instructions);

@@ -4,13 +4,13 @@ import {
   Upload,
   Folder,
   FileText,
-  ChevronDown,
   Trash2,
   Table2,
 } from "lucide-react";
 import UploadFileModal from "../components/UploadFileModal";
 import RubricEditor from "../components/RubricEditor";
 import { API_URL } from "../api";
+import { FORMATS, SBB_LEVELS, THEMES } from "../options";
 
 // Each folder shows the files of one document type
 const FOLDERS = [
@@ -28,10 +28,6 @@ const fetchFiles = () =>
       console.error("Could not load files:", error);
       return [];
     });
-
-// Unique, non-empty values of a field, for the filter dropdowns
-const uniqueValues = (files, key) =>
-  [...new Set(files.map((f) => f[key]).filter(Boolean))].sort();
 
 export default function FileLibrary() {
   const [files, setFiles] = useState([]);
@@ -108,9 +104,9 @@ export default function FileLibrary() {
           className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
         >
           <option value="all">All SBB</option>
-          <option>G1</option>
-          <option>G2</option>
-          <option>G3</option>
+          {SBB_LEVELS.map((level) => (
+            <option key={level}>{level}</option>
+          ))}
         </select>
         <select
           value={format}
@@ -118,7 +114,7 @@ export default function FileLibrary() {
           className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
         >
           <option value="all">All formats</option>
-          {uniqueValues(files, "format").map((f) => (
+          {FORMATS.map((f) => (
             <option key={f}>{f}</option>
           ))}
         </select>
@@ -128,7 +124,7 @@ export default function FileLibrary() {
           className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
         >
           <option value="all">All themes</option>
-          {uniqueValues(files, "theme").map((t) => (
+          {THEMES.map((t) => (
             <option key={t}>{t}</option>
           ))}
         </select>
@@ -156,9 +152,6 @@ export default function FileLibrary() {
         ))}
       </div>
 
-      <p className="mb-2 flex items-center gap-1 text-sm text-slate-500">
-        {activeFolder.name} <ChevronDown size={14} />
-      </p>
       {visibleFiles.length === 0 && (
         <p className="py-6 text-center text-sm text-slate-400">No files yet</p>
       )}

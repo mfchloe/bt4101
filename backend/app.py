@@ -12,6 +12,8 @@ from rubric import extract_rubric_bands
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 DOC_TYPES = {"Model essay", "Rubric", "Lesson notes", "Marked essay"}
+# Only these are retrieved by RAG (rubrics are read from SQL as bands, and marked essays are kept for reference only)
+EMBEDDED_DOC_TYPES = {"Model essay", "Lesson notes"}
 # "" = not specified (for SBB, it means the file applies to all levels)
 SBB_LEVELS = {"", "G1", "G2", "G3"}
 THEMES = {"", "Technology", "Environment", "Identity", "Society", "Education",
@@ -55,10 +57,11 @@ def upload_file():
     if ext not in ALLOWED_EXTENSIONS:
         return {"error": f"Unsupported file type: {ext}"}, 400
 
-    # 1. Save the original file to disk (uuid prefix avoids name clashes)
-    stored_path = os.path.join(
-        UPLOAD_DIR, f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-    )
+    # 1. Save the original file to disk (uuid prefix avoids name clashes).
+    # The extension is added back separately because secure_filename strips
+    # non-ASCII names, e.g. "作文.docx" becomes "docx".
+    stem = secure_filename(os.path.splitext(file.filename)[0]) or "file"
+    stored_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_{stem}{ext}")
     file.save(stored_path)
 
     # 2. Extract text and split it into chunks
@@ -71,26 +74,29 @@ def upload_file():
         os.remove(stored_path)
         return {"error": "No text found in file (scanned PDFs are not supported yet)"}, 400
 
-    # 3. Record the file in SQLite
+    # 3. Record the file in SQLite (num_chunks = chunks in the vector store)
+    embed = doc_type in EMBEDDED_DOC_TYPES
+    num_chunks = len(chunks) if embed else 0
     with get_conn() as conn:
         cur = conn.execute(
             """INSERT INTO library_files
                (filename, stored_path, doc_type, sbb, theme, format, num_chunks)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (file.filename, stored_path, doc_type, sbb, theme, format, len(chunks)),
+            (file.filename, stored_path, doc_type, sbb, theme, format, num_chunks),
         )
         file_id = cur.lastrowid
 
-    # 4. Embed the chunks into the vector store
-    try:
-        vector_store.add_chunks(file_id, chunks, doc_type, sbb, theme, format)
-    except Exception as e:
-        with get_conn() as conn:
-            conn.execute("DELETE FROM library_files WHERE id = ?", (file_id,))
-        os.remove(stored_path)
-        return {"error": f"Embedding failed: {e}"}, 500
+    # 4. Embed the chunks into the vector store (lesson notes and model essays only)
+    if embed:
+        try:
+            vector_store.add_chunks(file_id, chunks, doc_type, sbb, theme, format)
+        except Exception as e:
+            with get_conn() as conn:
+                conn.execute("DELETE FROM library_files WHERE id = ?", (file_id,))
+            os.remove(stored_path)
+            return {"error": f"Embedding failed: {e}"}, 500
 
-    return {"id": file_id, "filename": file.filename, "num_chunks": len(chunks)}, 201
+    return {"id": file_id, "filename": file.filename, "num_chunks": num_chunks}, 201
 
 
 # GET /api/library/files - list all uploaded files
@@ -168,7 +174,15 @@ def save_rubric(file_id):
     except (KeyError, TypeError, ValueError):
         return {"error": "Each band needs a criterion, band, min_mark and max_mark"}, 400
 
+    error = validate_bands(bands)
+    if error:
+        return {"error": error}, 400
+
     with get_conn() as conn:
+        if conn.execute(
+            "SELECT 1 FROM library_files WHERE id = ? AND doc_type = 'Rubric'", (file_id,)
+        ).fetchone() is None:
+            return {"error": "Rubric file not found"}, 404
         # Replace all bands for this file with the reviewed ones
         conn.execute("DELETE FROM rubric_bands WHERE file_id = ?", (file_id,))
         conn.executemany(
@@ -178,6 +192,26 @@ def save_rubric(file_id):
             bands,
         )
     return {"saved": len(bands)}
+
+
+def validate_bands(bands):
+    """Return an error message if the bands can't be used for marking, else None."""
+    if not bands:
+        return "Add at least one band before saving"
+    by_criterion = {}
+    for _, criterion, band, min_mark, max_mark, _ in bands:
+        if not criterion:
+            return "Every band needs a criterion"
+        if min_mark < 0 or min_mark > max_mark:
+            return f"{criterion} band {band}: marks must satisfy 0 ≤ min ≤ max"
+        by_criterion.setdefault(criterion, []).append((min_mark, max_mark, band))
+    # Within a criterion, each mark must fall in at most one band
+    for criterion, ranges in by_criterion.items():
+        ranges.sort()
+        for (_, prev_max, prev_band), (lo, _, band) in zip(ranges, ranges[1:]):
+            if lo <= prev_max:
+                return f"{criterion}: bands {prev_band} and {band} have overlapping marks"
+    return None
 
 
 if __name__ == "__main__":

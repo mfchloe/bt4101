@@ -5,7 +5,9 @@ import re
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+from config import ENV_PATH
+
+load_dotenv(ENV_PATH)
 
 # School LLM service (OpenAI-compatible API)
 client = OpenAI(

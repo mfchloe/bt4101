@@ -1,9 +1,7 @@
-import os
-
 import chromadb
 from chromadb.utils import embedding_functions
 
-CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
+from config import CHROMA_DIR
 
 client = chromadb.PersistentClient(path=CHROMA_DIR)
 # Uses Chroma's built-in local embedding model (downloaded once on first use).

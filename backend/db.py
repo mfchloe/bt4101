@@ -1,7 +1,6 @@
-import os
 import sqlite3
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "app.db")
+from config import DB_PATH
 
 
 def get_conn():

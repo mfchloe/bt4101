@@ -60,7 +60,15 @@ export default function FileLibrary() {
 
   const handleDelete = async (file) => {
     if (!confirm(`Delete "${file.filename}" from the library?`)) return;
-    await fetch(`${API_URL}/api/library/files/${file.id}`, { method: "DELETE" });
+    try {
+      const response = await fetch(`${API_URL}/api/library/files/${file.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Delete failed");
+    } catch (error) {
+      alert(`Could not delete "${file.filename}": ${error.message}`);
+    }
     loadFiles();
   };
 

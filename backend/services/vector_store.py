@@ -30,3 +30,16 @@ def add_chunks(file_id, chunks, doc_type, sbb, theme, format):
 
 def delete_chunks(file_id):
     collection.delete(where={"file_id": file_id})
+
+
+def query(text, where, n):
+    """Return up to n chunks matching the metadata filter, most similar first."""
+    if collection.count() == 0:
+        return []
+    res = collection.query(query_texts=[text], n_results=n, where=where)
+    return [
+        {"id": chunk_id, "text": doc, "metadata": meta, "distance": dist}
+        for chunk_id, doc, meta, dist in zip(
+            res["ids"][0], res["documents"][0], res["metadatas"][0], res["distances"][0]
+        )
+    ]

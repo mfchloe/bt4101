@@ -1,5 +1,8 @@
 import { useRef, useState } from "react";
-import { Download, Loader2, Paperclip, RefreshCw, Sparkles, Upload } from "lucide-react";
+import { flushSync } from "react-dom";
+import { FileDown, Loader2, Paperclip, Sparkles, Upload } from "lucide-react";
+import MaterialSection from "../components/content-generator/MaterialSection";
+import printMaterial from "../components/content-generator/printMaterial";
 import ResizeHandle from "../components/ResizeHandle";
 import useResizableWidth from "../hooks/useResizableWidth";
 
@@ -41,6 +44,11 @@ const MATERIAL_TYPES = [
   },
 ];
 
+// Titles of sections meant only for the teacher. The generation prompt asks
+// for these to start with "Answer guide" or "Marking guide".
+const TEACHER_SECTION =
+  /answer (guide|key|sheet)|answers\b|marking (guide|scheme)|mark scheme|solutions\b|for the teacher|teacher'?s? (guide|notes|reference)/i;
+
 export default function ContentGenerator() {
   const [band, setBand] = useState("G1");
   const [materialType, setMaterialType] = useState(MATERIAL_TYPES[0].name);
@@ -55,8 +63,13 @@ export default function ContentGenerator() {
   // Generated content
   const [generatedMaterial, setGeneratedMaterial] = useState("");
   const [sources, setSources] = useState([]);
+  const [relaxed, setRelaxed] = useState([]); // filters dropped to find enough resources
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [regeneratingIndex, setRegeneratingIndex] = useState(null);
+  // Section open in the editor (one at a time); -1 = whole material when it has no sections
+  const [editingIndex, setEditingIndex] = useState(null);
+  const documentRef = useRef(null);
   const [error, setError] = useState("");
 
   const fileInputRef = useRef(null);
@@ -73,26 +86,31 @@ export default function ContentGenerator() {
    *
    * Sends the teacher's requirements to Flask.
    */
+  // Fields shared by generate and regenerate-section
+  const buildFormData = () => {
+    const formData = new FormData();
+
+    formData.append("band", band);
+    formData.append("materialType", materialType);
+    formData.append("theme", theme);
+    formData.append("format", format);
+    formData.append("instructions", instructions);
+
+    // Session file is temporary context.
+    // It is NOT automatically added to the permanent vector store.
+    sessionFiles.forEach((file) => formData.append("sessionFiles", file));
+    return formData;
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError("");
+    setEditingIndex(null);
 
     try {
-      const formData = new FormData();
-
-      formData.append("band", band);
-      formData.append("materialType", materialType);
-      formData.append("theme", theme);
-      formData.append("format", format);
-      formData.append("instructions", instructions);
-
-      // Session file is temporary context.
-      // It is NOT automatically added to the permanent vector store.
-      sessionFiles.forEach((file) => formData.append("sessionFiles", file));
-
       const response = await fetch(`${API_BASE_URL}/api/lesson/generate`, {
         method: "POST",
-        body: formData,
+        body: buildFormData(),
       });
 
       const data = await response.json();
@@ -103,6 +121,7 @@ export default function ContentGenerator() {
 
       setGeneratedMaterial(data.content || "");
       setSources(data.sources || []);
+      setRelaxed(data.relaxed || []);
     } catch (err) {
       console.error(err);
       setError(
@@ -116,35 +135,25 @@ export default function ContentGenerator() {
   /*
    * Regenerate a single section.
    *
-   * For now this sends the entire generated material to Flask,
-   * together with the section title.
-   *
-   * Later we can make the backend handle proper section-level
-   * regeneration.
+   * Sends the whole material (including the teacher's edits) and the
+   * section title; Flask rewrites only that section and returns the
+   * full material with it replaced.
    */
-  const handleRegenerateSection = async (sectionTitle) => {
+  const handleRegenerateSection = async (sectionTitle, index) => {
     if (!generatedMaterial) return;
 
     setError("");
+    setEditingIndex(null);
+    setRegeneratingIndex(index);
 
     try {
+      const formData = buildFormData();
+      formData.append("sectionTitle", sectionTitle);
+      formData.append("currentMaterial", generatedMaterial);
+
       const response = await fetch(
         `${API_BASE_URL}/api/lesson/regenerate-section`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            band,
-            materialType,
-            theme,
-            format,
-            instructions,
-            sectionTitle,
-            currentMaterial: generatedMaterial,
-          }),
-        },
+        { method: "POST", body: formData },
       );
 
       const data = await response.json();
@@ -159,43 +168,27 @@ export default function ContentGenerator() {
       setError(
         err.message || "Something went wrong while regenerating the section.",
       );
+    } finally {
+      setRegeneratingIndex(null);
     }
   };
 
+  const exportName = [theme, materialType].filter(Boolean).join("_").replace(/\s+/g, "_");
+
   /*
-   * Export generated material.
-   *
-   * For the MVP this downloads a .txt file.
-   * Later this can call a Flask endpoint to generate a proper
-   * Word/PDF worksheet.
+   * Export as PDF through the browser's print dialog ("Save as PDF").
+   * Close the editor first so every section is printed as formatted text.
    */
-  const handleExport = () => {
-    if (!generatedMaterial) return;
-
-    const blob = new Blob([generatedMaterial], {
-      type: "text/plain;charset=utf-8",
-    });
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${[theme, materialType]
-      .filter(Boolean)
-      .join("_")
-      .replace(/\s+/g, "_")}.txt`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    URL.revokeObjectURL(url);
+  const handleExportPdf = () => {
+    if (!generatedMaterial || !documentRef.current) return;
+    flushSync(() => setEditingIndex(null));
+    printMaterial(documentRef.current, exportName);
   };
 
   /*
-   * Extract markdown sections from the generated material.
+   * Split the generated material into its preamble and sections.
    *
-   * Expected Qwen output:
+   * Expected LLM output:
    *
    * # Title
    *
@@ -206,36 +199,42 @@ export default function ContentGenerator() {
    * ...
    */
   const parseSections = (content) => {
-    if (!content) return [];
-
-    const lines = content.split("\n");
-
+    const preamble = [];
     const sections = [];
-    let currentSection = null;
 
-    lines.forEach((line) => {
+    content.split("\n").forEach((line) => {
       if (line.startsWith("## ")) {
-        if (currentSection) {
-          sections.push(currentSection);
-        }
-
-        currentSection = {
-          title: line.replace("## ", "").trim(),
-          body: "",
-        };
-      } else if (currentSection) {
-        currentSection.body += `${line}\n`;
+        sections.push({ title: line.slice(3).trim(), body: "" });
+      } else if (sections.length > 0) {
+        sections[sections.length - 1].body += `${line}\n`;
+      } else {
+        preamble.push(line);
       }
     });
 
-    if (currentSection) {
-      sections.push(currentSection);
-    }
-
-    return sections;
+    return { preamble: preamble.join("\n"), sections };
   };
 
-  const sections = parseSections(generatedMaterial);
+  const { preamble, sections } = parseSections(generatedMaterial);
+  const title = preamble.match(/^# (.+)$/m)?.[1].trim();
+
+  // Teacher-only sections (answers, marking guides) come last and start on a
+  // new page in the PDF, so the student pages can be printed on their own.
+  // Lesson plans are all teacher-facing, so they are not split.
+  const teacherStart =
+    materialType === "Lesson plan"
+      ? -1
+      : sections.findIndex((s) => TEACHER_SECTION.test(s.title));
+
+  // Write an edited section back into the full Markdown, so edits are kept
+  // when exporting or regenerating another section
+  const updateSection = (index, body) => {
+    const parts = preamble.trim() ? [preamble.trim()] : [];
+    sections.forEach((s, i) =>
+      parts.push(`## ${s.title}\n${(i === index ? body : s.body).trim()}`),
+    );
+    setGeneratedMaterial(`${parts.join("\n\n")}\n`);
+  };
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -429,16 +428,16 @@ export default function ContentGenerator() {
           </p>
 
           <button
-            onClick={handleExport}
-            disabled={!generatedMaterial}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={handleExportPdf}
+            disabled={!generatedMaterial || isGenerating}
+            className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Download size={14} />
-            Export
+            <FileDown size={14} />
+            Export PDF
           </button>
         </div>
 
-        <div className="mx-auto min-h-[420px] max-w-3xl rounded-xl border border-slate-200 bg-white px-10 py-9 shadow-sm">
+        <div className="mx-auto min-h-[420px] max-w-3xl rounded-xl border border-slate-200 bg-white px-12 py-10 shadow-sm">
           {/* BEFORE GENERATION */}
           {!generatedMaterial && !isGenerating && (
             <div className="flex min-h-[340px] items-center justify-center">
@@ -480,61 +479,63 @@ export default function ContentGenerator() {
 
           {/* GENERATED CONTENT */}
           {generatedMaterial && !isGenerating && (
-            <>
-              <div className="mb-6 border-b border-slate-100 pb-5">
+            // Everything in here is printed by Export PDF, except data-no-print parts
+            <div ref={documentRef}>
+              <div className="mb-7 border-b border-slate-200 pb-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
                   {band} · {materialType}
                 </p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  {theme ? `${theme} ${materialType.toLowerCase()}` : materialType}
+                <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-slate-900">
+                  {title ||
+                    (theme ? `${theme} ${materialType.toLowerCase()}` : materialType)}
                 </h2>
               </div>
+
+              {relaxed.length > 0 && (
+                <div
+                  data-no-print
+                  className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-800"
+                >
+                  Not enough library resources matched every filter, so resources
+                  with any {relaxed.join(" or ")} were also used. Check the
+                  resources listed at the bottom.
+                </div>
+              )}
 
               {/* If sections were detected, display them individually */}
               {sections.length > 0 ? (
                 sections.map((section, index) => (
-                  <div
+                  <MaterialSection
                     key={`${section.title}-${index}`}
-                    className="group mb-6 last:mb-0"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-slate-900">
-                        {section.title}
-                      </h3>
-
-                      <button
-                        onClick={() => handleRegenerateSection(section.title)}
-                        aria-label="Regenerate section"
-                        title="Regenerate this section"
-                        className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-teal-700 opacity-0 transition-opacity hover:bg-teal-50 focus-visible:opacity-100 group-hover:opacity-100"
-                      >
-                        <RefreshCw size={13} />
-                        Regenerate
-                      </button>
-                    </div>
-
-                    <textarea
-                      value={section.body.trim()}
-                      readOnly
-                      className="mt-2 min-h-[100px] w-full resize-y border-0 bg-transparent p-0 text-[15px] leading-7 text-slate-700 shadow-none outline-none"
-                    />
-                  </div>
+                    title={section.title}
+                    body={section.body}
+                    editing={editingIndex === index}
+                    onToggleEdit={() =>
+                      setEditingIndex(editingIndex === index ? null : index)
+                    }
+                    onChange={(body) => updateSection(index, body)}
+                    onRegenerate={() => handleRegenerateSection(section.title, index)}
+                    regenerating={regeneratingIndex === index}
+                    regenerateDisabled={regeneratingIndex !== null}
+                    pageBreakBefore={index === teacherStart && index > 0}
+                  />
                 ))
               ) : (
                 /*
-                 * Fallback if Qwen does not follow the expected
-                 * markdown section format.
+                 * Fallback if the LLM does not follow the expected
+                 * markdown section format: one block for the whole material.
                  */
-                <textarea
-                  value={generatedMaterial}
-                  onChange={(e) => setGeneratedMaterial(e.target.value)}
-                  className="min-h-[400px] w-full resize-y rounded-lg border border-slate-200 bg-white p-4 text-[15px] leading-7 text-slate-700"
+                <MaterialSection
+                  body={generatedMaterial}
+                  editing={editingIndex === -1}
+                  onToggleEdit={() => setEditingIndex(editingIndex === -1 ? null : -1)}
+                  onChange={setGeneratedMaterial}
                 />
               )}
 
               {/* SOURCES */}
               {sources.length > 0 && (
-                <div className="mt-8 border-t border-slate-100 pt-5">
+                <div data-no-print className="mt-8 border-t border-slate-100 pt-5">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Resources used
                   </p>
@@ -559,7 +560,7 @@ export default function ContentGenerator() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>

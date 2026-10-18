@@ -1,5 +1,5 @@
 // Fixed options for library files. Keep in sync with SBB_LEVELS, THEMES and
-// FORMATS in backend/app.py.
+// FORMATS in backend/config.py.
 export const SBB_LEVELS = ["G1", "G2", "G3"];
 
 export const THEMES = [

@@ -25,3 +25,8 @@ export const FORMATS = [
 // Essays with a total at or below this mark (out of 30) are flagged as at risk,
 // on both the essay marking and analytics pages
 export const AT_RISK_MAX = 17;
+
+// Marking method used unless the teacher changes it under "Marking method".
+// Keep in sync with DEFAULT_USE_CHECKLIST / DEFAULT_USE_MODEL_ESSAYS in
+// backend/config.py, and set both to the best condition after the experiment.
+export const MARKING_DEFAULTS = { useChecklist: true, useModelEssays: true };

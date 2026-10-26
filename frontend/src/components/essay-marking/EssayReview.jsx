@@ -5,21 +5,27 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronDown,
+  Download,
+  Loader2,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   MessageSquarePlus,
+  Paperclip,
   PenLine,
   Sparkles,
   TextSelect,
   X,
 } from "lucide-react";
 import ResizeHandle from "../ResizeHandle";
+import { API_URL } from "../../api";
 import { AT_RISK_MAX } from "../../options";
 import useResizableWidth from "../../hooks/useResizableWidth";
+import { exportBatchZip, exportEssayPdf } from "./exportFeedback";
 import {
   ANNOTATION_TYPES,
   buildSegments,
+  findQuote,
   getAnnotationType,
 } from "./annotations";
 
@@ -31,14 +37,19 @@ const initialsOf = (name) =>
     .map((part) => part[0].toUpperCase())
     .join("");
 
-export default function EssayReview({ result, onNewBatch }) {
-  const [essays, setEssays] = useState(() =>
-    result.essays.map((e) => ({
-      ...e,
-      status: "pending",
-      criteria: e.criteria.map((c) => ({ ...c, aiScore: c.score })),
-    })),
-  );
+// Review state for one marked essay. Reopened essays keep their saved status
+// and the AI's original marks.
+const prepareEssay = (e) => ({
+  ...e,
+  status: e.status ?? "pending",
+  criteria: e.criteria.map((c) => ({ ...c, aiScore: c.aiScore ?? c.score })),
+});
+
+export default function EssayReview({ result, backLabel, onBack, onRetryFailed }) {
+  const [essays, setEssays] = useState(() => result.essays.map(prepareEssay));
+  // Essays that couldn't be marked; ones from this session can be retried
+  const [failed, setFailed] = useState(result.failed ?? []);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [index, setIndex] = useState(0);
   const [tab, setTab] = useState("marking");
   const [activeId, setActiveId] = useState(null);
@@ -48,6 +59,11 @@ export default function EssayReview({ result, onNewBatch }) {
   const [draft, setDraft] = useState(null);
   // Last text the teacher selected in the essay, for "Use selection"
   const [selectedText, setSelectedText] = useState("");
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const essayRef = useRef(null);
   const commentsRef = useRef(null);
@@ -61,19 +77,24 @@ export default function EssayReview({ result, onNewBatch }) {
 
   const current = essays[index];
 
-  const { segments, placedIds } = useMemo(
+  const { segments, ranges } = useMemo(
     () => buildSegments(current.text, current.annotations),
     [current.text, current.annotations],
   );
 
-  // Annotations in the order they appear in the essay; unplaced ones last
+  // Annotations in the order they appear in the essay (longer first when two
+  // start together); ones whose text isn't in the essay go last
   const orderedAnnotations = useMemo(() => {
-    const placed = segments
-      .filter((s) => s.annotation)
-      .map((s) => s.annotation);
-    const unplaced = current.annotations.filter((a) => !placedIds.has(a.id));
+    const placed = current.annotations
+      .filter((a) => ranges.has(a.id))
+      .sort((a, b) => {
+        const ra = ranges.get(a.id);
+        const rb = ranges.get(b.id);
+        return ra.start - rb.start || rb.end - ra.end;
+      });
+    const unplaced = current.annotations.filter((a) => !ranges.has(a.id));
     return [...placed, ...unplaced];
-  }, [segments, placedIds, current.annotations]);
+  }, [ranges, current.annotations]);
 
   const typeCounts = useMemo(() => {
     const counts = {};
@@ -90,26 +111,31 @@ export default function EssayReview({ result, onNewBatch }) {
   // Bring the selected highlight and its comment card into view
   useEffect(() => {
     if (!activeId) return;
-    const selector = `[data-annotation-id="${activeId}"]`;
     essayRef.current
-      ?.querySelector(selector)
+      ?.querySelector(`[data-annotation-ids~="${activeId}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     commentsRef.current
-      ?.querySelector(selector)
+      ?.querySelector(`[data-annotation-id="${activeId}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [activeId, tab]);
 
+  const setCurrent = (changes) =>
+    setEssays((all) => all.map((e, i) => (i === index ? { ...e, ...changes } : e)));
+
   // Any edit to an accepted essay (marks, comments, feedback) puts it back to
   // "pending", so the teacher has to accept the changed version again
-  const updateCurrent = (changes) =>
-    setEssays((all) =>
-      all.map((e, i) =>
-        i === index ? { ...e, status: "pending", ...changes } : e,
-      ),
-    );
+  const updateCurrent = (changes) => {
+    if (current.status === "accepted") {
+      fetch(`${API_URL}/api/marking/submissions/${current.id}/reopen`, {
+        method: "POST",
+      }).catch((err) => console.error("Could not reopen essay:", err));
+    }
+    setCurrent({ status: "pending", ...changes });
+  };
 
   const goTo = (nextIndex) => {
     setIndex(nextIndex);
+    setSaveError("");
     setActiveId(null);
     cancelEdit();
     setSelectedText("");
@@ -164,8 +190,7 @@ export default function EssayReview({ result, onNewBatch }) {
 
   // Form for editing a comment, or writing a new one (draft.isNew)
   const renderEditor = () => {
-    const quoteFound =
-      draft.quote.trim() && current.text.includes(draft.quote.trim());
+    const quoteFound = findQuote(current.text, draft.quote) !== null;
     const field =
       "w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800";
     const label = "mb-1 block text-xs font-semibold text-slate-700";
@@ -317,12 +342,67 @@ export default function EssayReview({ result, onNewBatch }) {
       return next;
     });
 
-  const handleAccept = () => {
-    updateCurrent({ status: "accepted" });
+  // Save the teacher's final marks, comments and feedback; analytics only
+  // uses accepted essays
+  const handleAccept = async () => {
+    setSaveError("");
+    setIsSaving(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/marking/submissions/${current.id}/accept`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentName: current.studentName,
+            criteria: current.criteria.map(({ name, score }) => ({ name, score })),
+            feedback: current.feedback,
+            annotations: current.annotations,
+          }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save the marks");
+      // Saved comments come back with database ids, so accepting again updates them
+      setCurrent({ status: "accepted", annotations: data.annotations });
+    } catch (err) {
+      setSaveError(err.message);
+      return;
+    } finally {
+      setIsSaving(false);
+    }
     if (index < essays.length - 1) goTo(index + 1);
   };
 
   const acceptedCount = essays.filter((e) => e.status === "accepted").length;
+
+  // Mark the failed essays again; newly marked ones are added to the batch
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    try {
+      const { marked, failed: stillFailed } = await onRetryFailed(failed);
+      setEssays((all) => [...all, ...marked.map(prepareEssay)]);
+      setFailed(stillFailed);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  // Student feedback PDFs; only accepted (teacher-approved) essays are exported
+  const handleExport = async (all) => {
+    setShowExport(false);
+    setSaveError("");
+    setIsExporting(true);
+    try {
+      if (all) await exportBatchZip(essays, result);
+      else await exportEssayPdf(current, result);
+    } catch (err) {
+      console.error(err);
+      setSaveError(`Could not export: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -330,11 +410,11 @@ export default function EssayReview({ result, onNewBatch }) {
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3">
         <div className="flex items-center gap-2.5">
           <button
-            onClick={onNewBatch}
+            onClick={onBack}
             className="mr-3 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
           >
             <ArrowLeft size={14} />
-            New batch
+            {backLabel}
           </button>
 
           <button
@@ -365,6 +445,65 @@ export default function EssayReview({ result, onNewBatch }) {
         </div>
 
         <div className="flex items-center gap-3.5">
+          {/* EXPORT */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExport(!showExport)}
+              disabled={isExporting}
+              aria-expanded={showExport}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {isExporting ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Download size={14} />
+              )}
+              {isExporting ? "Exporting…" : "Export"}
+            </button>
+            {showExport && (
+              // Clicking anywhere else closes the menu
+              <div className="fixed inset-0 z-10" onClick={() => setShowExport(false)} />
+            )}
+            {showExport && (
+              <div className="absolute right-0 z-20 mt-1.5 w-72 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                {[
+                  {
+                    label: "This essay (PDF)",
+                    hint:
+                      current.status === "accepted"
+                        ? `Feedback for ${current.studentName}`
+                        : "Accept this essay first",
+                    disabled: current.status !== "accepted",
+                    all: false,
+                  },
+                  {
+                    label: "All accepted essays (ZIP)",
+                    hint:
+                      acceptedCount > 0
+                        ? `One PDF per student · ${acceptedCount} of ${essays.length} accepted` +
+                          (acceptedCount < essays.length
+                            ? `, ${essays.length - acceptedCount} not included`
+                            : "")
+                        : "No essays accepted yet",
+                    disabled: acceptedCount === 0,
+                    all: true,
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.label}
+                    onClick={() => handleExport(option.all)}
+                    disabled={option.disabled}
+                    className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                  >
+                    <span className="block text-sm font-semibold text-slate-800">
+                      {option.label}
+                    </span>
+                    <span className="block text-xs text-slate-500">{option.hint}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {isAtRisk && (
             <span
               title={`Total of ${AT_RISK_MAX}/${maxTotal} or below`}
@@ -386,13 +525,39 @@ export default function EssayReview({ result, onNewBatch }) {
           ) : (
             <button
               onClick={handleAccept}
-              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-700"
+              disabled={isSaving}
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:opacity-60"
             >
-              Accept
+              {isSaving ? "Saving…" : "Accept"}
             </button>
           )}
         </div>
       </div>
+
+      {(saveError || failed.length > 0) && (
+        <div className="flex shrink-0 items-center gap-4 border-b border-amber-200 bg-amber-50 px-6 py-2 text-xs text-amber-800">
+          <div className="min-w-0 flex-1 space-y-1">
+            {saveError && <p className="font-semibold text-red-700">{saveError}</p>}
+            {failed.map((f) => (
+              <p key={f.fileName}>
+                Not marked: {f.studentName} ({f.fileName}). {f.error}
+              </p>
+            ))}
+          </div>
+          {onRetryFailed && failed.length > 0 && failed.every((f) => f.file) && (
+            <button
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+            >
+              {isRetrying && <Loader2 size={13} className="animate-spin" />}
+              {isRetrying
+                ? "Retrying…"
+                : `Retry ${failed.length === 1 ? "this essay" : `${failed.length} essays`}`}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         {/* ESSAY */}
@@ -403,14 +568,6 @@ export default function EssayReview({ result, onNewBatch }) {
         >
           <div className="mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white px-10 py-9 shadow-sm">
             <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4">
-              <button
-                onClick={startNewComment}
-                onMouseUp={(e) => e.stopPropagation()}
-                className="order-last ml-auto flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-coral-300 hover:bg-coral-50"
-              >
-                <MessageSquarePlus size={14} className="text-coral-500" />
-                {selectedText ? "Comment on selection" : "Add comment"}
-              </button>
               {/* Legend, doubles as a filter */}
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(ANNOTATION_TYPES)
@@ -440,29 +597,43 @@ export default function EssayReview({ result, onNewBatch }) {
 
             <p className="whitespace-pre-wrap text-[15px] leading-8 text-slate-800">
               {segments.map((segment, i) => {
-                const { annotation } = segment;
-                if (!annotation || hiddenTypes.has(annotation.type)) {
+                const visible = segment.annotations.filter(
+                  (a) => !hiddenTypes.has(a.type),
+                );
+                if (visible.length === 0) {
                   return <span key={i}>{segment.text}</span>;
                 }
-                const style = getAnnotationType(annotation.type);
-                const isActive = activeId === annotation.id;
+                // Colour by the selected comment if it covers this text, else
+                // by the innermost one
+                const active = visible.find((a) => a.id === activeId);
+                const shown = active ?? visible[0];
+                const style = getAnnotationType(shown.type);
+                // Where comments overlap, each click selects the next one
+                const selectNext = () => {
+                  const at = visible.findIndex((a) => a.id === activeId);
+                  selectAnnotation(visible[(at + 1) % visible.length].id);
+                };
                 return (
                   <mark
                     key={i}
-                    data-annotation-id={annotation.id}
+                    data-annotation-ids={visible.map((a) => a.id).join(" ")}
                     role="button"
                     tabIndex={0}
-                    title={annotation.comment}
-                    onClick={() => selectAnnotation(annotation.id)}
+                    title={
+                      visible.length > 1
+                        ? `${visible.length} comments here; click to cycle through them`
+                        : shown.comment
+                    }
+                    onClick={selectNext}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        selectAnnotation(annotation.id);
+                        selectNext();
                       }
                     }}
-                    className={`cursor-pointer rounded-sm px-0.5 text-inherit underline decoration-2 underline-offset-4 ${style.mark} ${
-                      isActive ? "ring-2 ring-teal-400" : ""
-                    }`}
+                    className={`cursor-pointer rounded-sm text-inherit underline underline-offset-4 ${
+                      visible.length > 1 ? "decoration-[3px]" : "decoration-2"
+                    } ${style.mark} ${active ? "ring-2 ring-teal-400" : ""}`}
                   >
                     {segment.text}
                   </mark>
@@ -507,9 +678,21 @@ export default function EssayReview({ result, onNewBatch }) {
 
           {tab === "marking" ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-5">
-              <p className="mb-4 text-xs font-medium text-slate-500">
+              <p className="text-xs font-medium text-slate-500">
                 Rubric · {result.rubric}
               </p>
+              {current.run && (
+                <p className="mb-4 mt-0.5 text-xs text-slate-400">
+                  {[
+                    current.run.useChecklist ? "Checklist" : "Direct rubric",
+                    current.run.useModelEssays && "model essays",
+                    current.source === "ocr" && "transcribed from a scan",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
+              {!current.run && <div className="mb-4" />}
 
               {current.criteria.map((c) => {
                 const weak = c.score / c.max < 0.5;
@@ -609,6 +792,20 @@ export default function EssayReview({ result, onNewBatch }) {
                 );
               })}
 
+              {current.weaknessTags?.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-semibold text-slate-700">Focus areas</span>
+                  {current.weaknessTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <div className="mb-1.5 mt-4 flex items-center justify-between">
                 <label
                   htmlFor="overall-feedback"
@@ -627,6 +824,36 @@ export default function EssayReview({ result, onNewBatch }) {
                 onChange={(e) => updateCurrent({ feedback: e.target.value })}
                 className="min-h-[240px] w-full flex-1 resize-y rounded-xl border border-slate-200 px-3.5 py-3 text-sm leading-6 text-slate-700"
               />
+
+              {/* MODEL ESSAYS, listed like the Content generator's resources */}
+              {current.run?.useModelEssays && (
+                <div className="mt-6 border-t border-slate-100 pt-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Model essays used
+                  </p>
+                  {current.run.modelEssays.length > 0 ? (
+                    <div className="space-y-1">
+                      {current.run.modelEssays.map((name) => (
+                        <div
+                          key={name}
+                          className="flex items-center gap-2 text-sm text-slate-600"
+                        >
+                          <Paperclip size={13} className="shrink-0 text-slate-400" />
+                          <span className="min-w-0 truncate">{name}</span>
+                          <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700">
+                            Model essay
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">
+                      No model essays in your library matched this band, format and theme,
+                      so this essay was marked without them.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div
@@ -726,10 +953,9 @@ export default function EssayReview({ result, onNewBatch }) {
                       {a.comment}
                     </p>
 
-                    {!placedIds.has(a.id) && (
+                    {!ranges.has(a.id) && (
                       <p className="mt-1.5 text-xs text-amber-700">
-                        Not highlighted: the text isn't in the essay or overlaps
-                        another comment
+                        Not highlighted: this text couldn't be found in the essay
                       </p>
                     )}
                   </div>

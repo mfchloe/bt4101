@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   BookOpen,
+  ClipboardCheck,
   ClipboardList,
+  Download,
   FileText,
   PenLine,
   Search,
@@ -15,6 +17,7 @@ import RubricEditor from "../components/RubricEditor";
 import PageHeader from "../components/PageHeader";
 import { API_URL } from "../api";
 import { FORMATS, SBB_LEVELS, THEMES } from "../options";
+import { exportBatchZip } from "../components/essay-marking/exportFeedback";
 
 // Each folder shows the files of one document type
 const FOLDERS = [
@@ -36,13 +39,38 @@ const fetchFiles = () =>
       return [];
     });
 
-export default function FileLibrary() {
+// Essay batches marked in CoTeach, shown in the Marked essays folder
+const fetchBatches = () =>
+  fetch(`${API_URL}/api/marking/assignments`)
+    .then((response) => response.json())
+    .then((data) => data.assignments)
+    .catch((error) => {
+      console.error("Could not load marked essays:", error);
+      return [];
+    });
+
+// SQLite stores UTC as "2026-10-26 02:16:46"
+const formatDate = (timestamp) =>
+  new Date(`${timestamp.replace(" ", "T")}Z`).toLocaleDateString("en-SG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+export default function FileLibrary({ folder, onFolderChange, onOpenBatch }) {
   const [files, setFiles] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [search, setSearch] = useState("");
   const [sbb, setSbb] = useState("all");
   const [format, setFormat] = useState("all");
   const [theme, setTheme] = useState("all");
-  const [activeFolder, setActiveFolder] = useState(FOLDERS[0]);
+  const [activeFolder, setActiveFolderState] = useState(
+    FOLDERS.find((f) => f.docType === folder) ?? FOLDERS[0],
+  );
+  const setActiveFolder = (f) => {
+    setActiveFolderState(f);
+    onFolderChange(f.docType);
+  };
   const [showUpload, setShowUpload] = useState(false);
   const [rubricFile, setRubricFile] = useState(null); // rubric open in the band editor
 
@@ -50,6 +78,7 @@ export default function FileLibrary() {
 
   useEffect(() => {
     fetchFiles().then(setFiles);
+    fetchBatches().then(setBatches);
   }, []);
 
   // After an upload, refresh the list; rubrics go straight to band review
@@ -72,6 +101,42 @@ export default function FileLibrary() {
     loadFiles();
   };
 
+  // Download every accepted essay in a batch as student feedback PDFs (zip)
+  const handleExportBatch = async (batch) => {
+    try {
+      const response = await fetch(`${API_URL}/api/marking/assignments/${batch.id}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load the batch");
+      await exportBatchZip(data.essays, data);
+    } catch (error) {
+      alert(`Could not export: ${error.message}`);
+    }
+  };
+
+  // Deleting a batch also removes its marks from Analytics
+  const handleDeleteBatch = async (batch) => {
+    const name = batch.question || `${batch.format} essay`;
+    if (
+      !confirm(
+        `Delete "${name}" and all ${batch.essays} marked essay${batch.essays === 1 ? "" : "s"} in it? ` +
+          "Their marks and comments will be removed from Analytics. This can't be undone.",
+      )
+    )
+      return;
+    try {
+      const response = await fetch(`${API_URL}/api/marking/assignments/${batch.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Delete failed");
+    } catch (error) {
+      alert(`Could not delete "${name}": ${error.message}`);
+    }
+    fetchBatches().then(setBatches);
+    // The batch's rubric may now be deletable, so refresh files too
+    loadFiles();
+  };
+
   const visibleFiles = files.filter(
     (f) =>
       f.doc_type === activeFolder.docType &&
@@ -81,6 +146,20 @@ export default function FileLibrary() {
       (format === "all" || f.format === format) &&
       (theme === "all" || f.theme === theme),
   );
+
+  const visibleBatches =
+    activeFolder.docType === "Marked essay"
+      ? batches.filter(
+          (b) =>
+            [b.question, b.students, b.rubric]
+              .join(" ")
+              .toLowerCase()
+              .includes(search.toLowerCase()) &&
+            (sbb === "all" || b.sbb === sbb) &&
+            (format === "all" || b.format === format) &&
+            (theme === "all" || b.theme === theme),
+        )
+      : [];
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
@@ -102,6 +181,7 @@ export default function FileLibrary() {
         {FOLDERS.map((f) => {
           const isActive = activeFolder.name === f.name;
           const count = files.filter((file) => file.doc_type === f.docType).length;
+          const batchCount = f.docType === "Marked essay" ? batches.length : 0;
           return (
             <button
               key={f.name}
@@ -125,7 +205,12 @@ export default function FileLibrary() {
                   {f.name}
                 </span>
                 <span className="block text-xs text-slate-500">
-                  {count} {count === 1 ? "file" : "files"}
+                  {[
+                    batchCount > 0 && `${batchCount} ${batchCount === 1 ? "batch" : "batches"}`,
+                    (count > 0 || batchCount === 0) && `${count} ${count === 1 ? "file" : "files"}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               </span>
             </button>
@@ -168,18 +253,72 @@ export default function FileLibrary() {
           </select>
         </div>
 
-        {visibleFiles.length === 0 ? (
+        {visibleFiles.length === 0 && visibleBatches.length === 0 ? (
           <div className="px-6 py-14 text-center">
             <FileText size={28} className="mx-auto text-slate-300" />
             <p className="mt-3 text-sm font-medium text-slate-700">
               No {activeFolder.name.toLowerCase()} here yet
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Upload a file, or clear the filters above.
+              {activeFolder.docType === "Marked essay"
+                ? "Essays you mark in Essay marking appear here. You can also upload a file, or clear the filters above."
+                : "Upload a file, or clear the filters above."}
             </p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
+            {/* Marking batches: open to review or edit the marks again */}
+            {visibleBatches.map((batch) => (
+              <li
+                key={`batch-${batch.id}`}
+                className="group flex items-center gap-1 pr-4 hover:bg-slate-50"
+              >
+                <button
+                  onClick={() => onOpenBatch(batch.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left"
+                >
+                  <ClipboardCheck size={18} className="shrink-0 text-teal-600" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-slate-800">
+                      {batch.question || `${batch.format} essay · ${batch.theme}`}
+                    </span>
+                    <span className="block truncate text-xs text-slate-500">
+                      {formatDate(batch.created_at)} · {batch.accepted} of {batch.essays}{" "}
+                      accepted · {batch.students}
+                    </span>
+                  </span>
+                  {[batch.sbb, batch.theme, batch.format].map((tag) => (
+                    <span
+                      key={tag}
+                      className="hidden rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 sm:inline"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </button>
+                <button
+                  onClick={() => handleExportBatch(batch)}
+                  disabled={!batch.accepted}
+                  aria-label={`Export feedback for ${batch.question || `batch ${batch.id}`}`}
+                  title={
+                    batch.accepted
+                      ? `Export feedback PDFs (${batch.accepted} accepted)`
+                      : "No essays accepted yet"
+                  }
+                  className="rounded-lg p-1.5 text-slate-400 opacity-60 hover:bg-teal-50 hover:text-teal-700 group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <Download size={16} />
+                </button>
+                <button
+                  onClick={() => handleDeleteBatch(batch)}
+                  aria-label={`Delete marking batch ${batch.question || batch.id}`}
+                  className="rounded-lg p-1.5 text-slate-400 opacity-60 hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </li>
+            ))}
+
             {visibleFiles.map((file) => (
               <li
                 key={file.id}

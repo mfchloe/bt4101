@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
-import { ClipboardCheck, FileText, FileUp, Loader2, X } from "lucide-react";
+import { ChevronRight, ClipboardCheck, FileText, FileUp, Loader2, X } from "lucide-react";
 import PageHeader from "../PageHeader";
-import { FORMATS, SBB_LEVELS, THEMES } from "../../options";
+import { FORMATS, MARKING_DEFAULTS, SBB_LEVELS, THEMES } from "../../options";
 
-const ACCEPTED_FILES = ".pdf,.docx,.txt,.jpg,.jpeg,.png";
+const ACCEPTED_FILES = ".pdf";
 
 // "tan_wei_ling-essay.pdf" -> "Tan Wei Ling Essay"
 const nameFromFile = (fileName) =>
@@ -20,16 +20,20 @@ const formatSize = (bytes) =>
 
 export default function EssayUploadForm({
   onSubmit,
-  onPreviewSample,
-  isMarking,
+  progress, // { done, total, building } while working, else null
   error,
 }) {
+  const isMarking = progress !== null;
   // The teacher must choose both before marking
   const [format, setFormat] = useState("");
   const [theme, setTheme] = useState("");
   const [band, setBand] = useState("G2");
   const [question, setQuestion] = useState("");
   const [instructions, setInstructions] = useState("");
+  // Marking method (FR-M5): the four experiment conditions A-D
+  const [showMethod, setShowMethod] = useState(false);
+  const [useChecklist, setUseChecklist] = useState(MARKING_DEFAULTS.useChecklist);
+  const [useModelEssays, setUseModelEssays] = useState(MARKING_DEFAULTS.useModelEssays);
 
   // [{ key, file, studentName }]
   const [essays, setEssays] = useState([]);
@@ -73,12 +77,13 @@ export default function EssayUploadForm({
 
   const handleSubmit = () =>
     onSubmit({
-      rubric: `${band} rubric`,
       format,
       theme,
       band,
       question,
       instructions,
+      useChecklist,
+      useModelEssays,
       essays,
     });
 
@@ -187,6 +192,53 @@ export default function EssayUploadForm({
             placeholder="Pay extra attention to subject-verb agreement"
             className="min-h-[60px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
           />
+
+          {/* MARKING METHOD (for the A-D evaluation; most teachers keep the default) */}
+          <button
+            onClick={() => setShowMethod(!showMethod)}
+            aria-expanded={showMethod}
+            className="mt-4 flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800"
+          >
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${showMethod ? "rotate-90" : ""}`}
+            />
+            Marking method
+          </button>
+          {showMethod && (
+            <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-3">
+              {[
+                {
+                  checked: useChecklist,
+                  set: setUseChecklist,
+                  label: "Checklist prompting",
+                  hint: "Build one set of yes/no checks from the rubric for this question, show it to you, then mark every essay with it",
+                },
+                {
+                  checked: useModelEssays,
+                  set: setUseModelEssays,
+                  label: "Model essays",
+                  hint: "Show the AI matching model essays from your library as examples",
+                },
+              ].map((option) => (
+                <label key={option.label} className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={option.checked}
+                    onChange={(e) => option.set(e.target.checked)}
+                    disabled={isMarking}
+                    className="mt-0.5 accent-teal-600"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-slate-800">
+                      {option.label}
+                    </span>
+                    <span className="block text-xs text-slate-500">{option.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ESSAYS */}
@@ -223,7 +275,7 @@ export default function EssayUploadForm({
               </button>
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              One essay per file · scanned (PDF, JPG, PNG) or typed (DOCX, TXT)
+              One essay per PDF · scanned handwriting or typed
             </p>
             <input
               ref={fileInputRef}
@@ -277,15 +329,7 @@ export default function EssayUploadForm({
         </div>
       )}
 
-      <div className="mt-6 flex items-center justify-between">
-        <button
-          onClick={onPreviewSample}
-          disabled={isMarking}
-          className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-teal-700 hover:underline"
-        >
-          Try it with sample essays
-        </button>
-
+      <div className="mt-6 flex items-center justify-end">
         <div className="flex items-center gap-3">
           {missing.length > 0 && !isMarking && (
             <p className="text-xs text-slate-500">
@@ -302,7 +346,9 @@ export default function EssayUploadForm({
             {isMarking ? (
               <>
                 <Loader2 size={15} className="animate-spin" />
-                Marking {essays.length} essay{essays.length === 1 ? "" : "s"}…
+                {progress.building
+                  ? "Building checklist…"
+                  : `Marked ${progress.done} of ${progress.total}…`}
               </>
             ) : (
               <>

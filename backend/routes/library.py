@@ -98,6 +98,15 @@ def delete_file(file_id):
         ).fetchone()
         if row is None:
             return {"error": "File not found"}, 404
+        # Marked essays point to their rubric, so a rubric in use can't be removed
+        in_use = conn.execute(
+            "SELECT COUNT(*) FROM assignments WHERE rubric_file_id = ?", (file_id,)
+        ).fetchone()[0]
+        if in_use:
+            return {
+                "error": f"This rubric was used to mark {in_use} essay batch"
+                f"{'es' if in_use != 1 else ''}, so it can't be deleted."
+            }, 409
         conn.execute("DELETE FROM library_files WHERE id = ?", (file_id,))
         conn.execute("DELETE FROM rubric_bands WHERE file_id = ?", (file_id,))
 

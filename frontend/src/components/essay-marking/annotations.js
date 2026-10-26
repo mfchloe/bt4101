@@ -37,48 +37,79 @@ export const ANNOTATION_TYPES = {
 export const getAnnotationType = (type) =>
   ANNOTATION_TYPES[type] ?? ANNOTATION_TYPES.content;
 
+// Characters that often differ between the essay and the AI's copy of a quote
+const EQUIVALENT = [
+  ["'", "‘", "’", "`"],
+  ['"', "“", "”"],
+  ["-", "–", "—"],
+];
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const charPattern = (ch) => {
+  const group = EQUIVALENT.find((g) => g.includes(ch));
+  return group ? `[${group.map(escapeRegex).join("")}]` : escapeRegex(ch);
+};
+
 /*
- * Split essay text into plain and highlighted segments.
+ * Find a quote in the essay: { start, end } or null.
  *
- * Each annotation's `quote` is located in the text (first occurrence
- * that doesn't overlap an earlier highlight). Annotations whose quote
- * can't be found are left out of the segments; their ids are missing
- * from `placedIds` so the UI can flag them.
+ * Tries an exact match first, then a looser one that ignores differences in
+ * spacing and line breaks (typed PDFs break lines mid-sentence), curly vs
+ * straight quotes, dash types, capitalisation and trailing punctuation.
+ */
+export function findQuote(text, quote) {
+  const trimmed = quote.trim();
+  if (!trimmed) return null;
+
+  const exact = text.indexOf(trimmed);
+  if (exact !== -1) return { start: exact, end: exact + trimmed.length };
+
+  for (const candidate of [trimmed, trimmed.replace(/[.,;:!?]+$/, "")]) {
+    const words = candidate.split(/\s+/).filter(Boolean);
+    if (words.length === 0) continue;
+    const pattern = words.map((w) => [...w].map(charPattern).join("")).join("\\s+");
+    const match = new RegExp(pattern, "i").exec(text);
+    if (match) return { start: match.index, end: match.index + match[0].length };
+  }
+  return null;
+}
+
+/*
+ * Split essay text into segments for highlighting.
+ *
+ * Highlights may overlap, so the text is cut at every highlight's start and
+ * end; each segment lists every annotation covering it, innermost (shortest)
+ * first. Annotations whose quote isn't in the essay are missing from
+ * `ranges`, so the UI can flag them.
  */
 export function buildSegments(text, annotations) {
-  const placed = [];
-
+  const ranges = new Map();
   annotations.forEach((annotation) => {
-    if (!annotation.quote) return;
-
-    let from = 0;
-    while (from < text.length) {
-      const start = text.indexOf(annotation.quote, from);
-      if (start === -1) return;
-
-      const end = start + annotation.quote.length;
-      const overlaps = placed.some((p) => start < p.end && end > p.start);
-      if (!overlaps) {
-        placed.push({ start, end, annotation });
-        return;
-      }
-      from = start + 1;
-    }
+    const range = annotation.quote && findQuote(text, annotation.quote);
+    if (range) ranges.set(annotation.id, range);
   });
 
-  placed.sort((a, b) => a.start - b.start);
+  const cuts = new Set([0, text.length]);
+  ranges.forEach(({ start, end }) => {
+    cuts.add(start);
+    cuts.add(end);
+  });
+  const points = [...cuts].sort((a, b) => a - b);
 
   const segments = [];
-  let cursor = 0;
-  placed.forEach(({ start, end, annotation }) => {
-    if (start > cursor) segments.push({ text: text.slice(cursor, start) });
-    segments.push({ text: text.slice(start, end), annotation });
-    cursor = end;
-  });
-  if (cursor < text.length) segments.push({ text: text.slice(cursor) });
+  for (let i = 0; i < points.length - 1; i++) {
+    const [from, to] = [points[i], points[i + 1]];
+    const covering = annotations
+      .filter((a) => {
+        const r = ranges.get(a.id);
+        return r && r.start <= from && r.end >= to;
+      })
+      .sort((a, b) => {
+        const ra = ranges.get(a.id);
+        const rb = ranges.get(b.id);
+        return ra.end - ra.start - (rb.end - rb.start);
+      });
+    segments.push({ text: text.slice(from, to), annotations: covering });
+  }
 
-  return {
-    segments,
-    placedIds: new Set(placed.map((p) => p.annotation.id)),
-  };
+  return { segments, ranges };
 }

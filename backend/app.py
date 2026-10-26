@@ -7,6 +7,7 @@ from config import UPLOAD_DIR
 from db import init_db
 from routes.generator import generator_bp
 from routes.library import library_bp
+from routes.marking import marking_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -17,6 +18,7 @@ init_db()
 # Each feature's routes live in routes/<feature>.py
 app.register_blueprint(library_bp)
 app.register_blueprint(generator_bp)
+app.register_blueprint(marking_bp)
 
 
 @app.route("/health")

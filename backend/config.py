@@ -17,3 +17,24 @@ THEMES = {"", "Technology", "Environment", "Identity", "Society", "Education",
           "Relationships", "Others"}
 FORMATS = {"", "Narrative", "Personal Recount", "Descriptive", "Reflective",
            "Argumentative", "Discursive", "Hybrid"}
+
+# ---- Essay marking ----
+# Essays are PDFs: typed ones are read directly, scanned ones go through OCR
+ESSAY_EXTENSIONS = {".pdf"}
+# Marking condition used when the request doesn't set one (FR-M5). Change to the
+# best-performing condition (A-D) once the marking experiment has been run.
+DEFAULT_USE_CHECKLIST = True
+DEFAULT_USE_MODEL_ESSAYS = True
+# Fixed list the AI picks up to 3 weakness tags from, so analytics can count them
+WEAKNESS_TAGS = [
+    "Task fulfilment",
+    "Development of ideas",
+    "Organisation",
+    "Cohesion",
+    "Vocabulary",
+    "Grammar",
+    "Spelling",
+    "Punctuation",
+    "Sentence structure",
+    "Tone and register",
+]

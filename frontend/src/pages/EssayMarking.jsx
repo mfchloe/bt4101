@@ -6,7 +6,7 @@ import ChecklistReview from "../components/essay-marking/ChecklistReview";
 import { API_URL as API_BASE_URL } from "../api";
 
 // Essays marked at the same time; each takes several LLM calls
-const PARALLEL_ESSAYS = 2;
+const PARALLEL_ESSAYS = 4;
 
 const postForm = async (path, fields) => {
   const formData = new FormData();

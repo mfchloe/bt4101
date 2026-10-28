@@ -89,8 +89,10 @@ export default function MaterialSection({
           className="mt-2 w-full resize-none overflow-hidden rounded-lg border border-teal-200 bg-teal-50/30 p-3 font-mono text-sm leading-6 text-slate-800 outline-none focus:border-teal-400"
         />
       ) : (
+        // wrap-anywhere: long unbroken runs (e.g. "_____" writing lines, URLs) wrap
+        // instead of pushing tables and lines past the page edge
         <div
-          className={`prose prose-slate mt-2 max-w-none text-[15px] leading-7 prose-headings:font-display prose-headings:text-slate-900 prose-strong:text-slate-900 prose-li:my-0.5 prose-table:text-sm prose-th:bg-slate-50 prose-th:px-3 prose-td:px-3 ${
+          className={`prose prose-slate mt-2 max-w-none wrap-anywhere text-[15px] leading-7 prose-headings:font-display prose-headings:text-slate-900 prose-strong:text-slate-900 prose-li:my-0.5 prose-table:text-sm prose-th:bg-slate-50 prose-th:px-3 prose-td:px-3 ${
             regenerating ? "opacity-40" : ""
           }`}
         >

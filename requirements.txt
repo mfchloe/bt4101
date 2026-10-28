@@ -105,3 +105,4 @@ pdfplumber==0.11.10
 pdfminer.six==20260107
 pypdfium2==5.14.0
 json-repair==0.64.2
+pyspellchecker==0.9.1

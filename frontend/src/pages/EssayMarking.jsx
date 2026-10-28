@@ -11,7 +11,10 @@ const PARALLEL_ESSAYS = 2;
 const postForm = async (path, fields) => {
   const formData = new FormData();
   Object.entries(fields).forEach(([key, value]) => formData.append(key, value));
-  const response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", body: formData });
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    body: formData,
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Request failed");
   return data;
@@ -31,7 +34,11 @@ const postForm = async (path, fields) => {
  *     { id, studentName, text, source, criteria: [{ name, score, max, note }],
  *       feedback, weaknessTags, annotations: [{ id, type, quote, suggestion, comment }], run }
  */
-export default function EssayMarking({ assignmentId, onBatchChange, onBackToLibrary }) {
+export default function EssayMarking({
+  assignmentId,
+  onBatchChange,
+  onBackToLibrary,
+}) {
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(null); // { done, total, building } while working
   // The batch's checklist, shown before marking: { assignment, essays, checklist, question, band }
@@ -40,14 +47,18 @@ export default function EssayMarking({ assignmentId, onBatchChange, onBackToLibr
   const [loadError, setLoadError] = useState("");
 
   // Reopen a saved batch (from the File library, or when coming back to this page)
-  const isLoading = Boolean(assignmentId) && result?.assignmentId !== assignmentId && !loadError;
+  const isLoading =
+    Boolean(assignmentId) &&
+    result?.assignmentId !== assignmentId &&
+    !loadError;
   useEffect(() => {
     if (!assignmentId || result?.assignmentId === assignmentId) return;
     let cancelled = false;
     fetch(`${API_BASE_URL}/api/marking/assignments/${assignmentId}`)
       .then(async (response) => {
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Could not open the batch");
+        if (!response.ok)
+          throw new Error(data.error || "Could not open the batch");
         if (!cancelled) setResult({ ...data, failed: [] });
       })
       .catch((err) => !cancelled && setLoadError(err.message));
@@ -76,17 +87,27 @@ export default function EssayMarking({ assignmentId, onBatchChange, onBackToLibr
         const i = next++;
         const { file, studentName } = essays[i];
         try {
-          marked[i] = await postForm(`/api/marking/assignments/${assignmentId}/essays`, {
-            essay: file,
-            studentName,
-          });
+          marked[i] = await postForm(
+            `/api/marking/assignments/${assignmentId}/essays`,
+            {
+              essay: file,
+              studentName,
+            },
+          );
         } catch (err) {
-          failed.push({ file, studentName, fileName: file.name, error: err.message });
+          failed.push({
+            file,
+            studentName,
+            fileName: file.name,
+            error: err.message,
+          });
         }
         onEssayDone();
       }
     };
-    await Promise.all(Array.from({ length: Math.min(PARALLEL_ESSAYS, essays.length) }, worker));
+    await Promise.all(
+      Array.from({ length: Math.min(PARALLEL_ESSAYS, essays.length) }, worker),
+    );
     return { marked: marked.filter(Boolean), failed };
   };
 
@@ -175,13 +196,15 @@ export default function EssayMarking({ assignmentId, onBatchChange, onBackToLibr
 
   // A batch with no marked essays (checklist rejected or failed) isn't kept
   const discardBatch = (id) =>
-    fetch(`${API_BASE_URL}/api/marking/assignments/${id}`, { method: "DELETE" }).catch(
-      (err) => console.error("Could not discard batch:", err),
-    );
+    fetch(`${API_BASE_URL}/api/marking/assignments/${id}`, {
+      method: "DELETE",
+    }).catch((err) => console.error("Could not discard batch:", err));
 
   if (isLoading) {
     return (
-      <p className="py-20 text-center text-sm text-slate-500">Opening marked essays…</p>
+      <p className="py-20 text-center text-sm text-slate-500">
+        Opening marked essays…
+      </p>
     );
   }
 
@@ -201,14 +224,20 @@ export default function EssayMarking({ assignmentId, onBatchChange, onBackToLibr
 
   return (
     <>
-      <EssayUploadForm onSubmit={handleMark} progress={progress} error={error || loadError} />
+      <EssayUploadForm
+        onSubmit={handleMark}
+        progress={progress}
+        error={error || loadError}
+      />
       {/* Pop-up over the form, so Back leaves the form as it was */}
       {checklistStep && (
         <ChecklistReview
           {...checklistStep}
           rubricBands={checklistStep.assignment.rubricBands}
           essayCount={checklistStep.essays.length}
-          onContinue={() => markEssays(checklistStep.assignment, checklistStep.essays)}
+          onContinue={() =>
+            markEssays(checklistStep.assignment, checklistStep.essays)
+          }
           onBack={() => {
             discardBatch(checklistStep.assignment.assignmentId);
             setChecklistStep(null);

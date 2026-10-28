@@ -19,6 +19,9 @@ WORDS_PER_PAGE = 300
 DEFAULT_PAGES = {"Worksheet": 3}
 # Allow some slack before asking the LLM to shorten
 LENGTH_TOLERANCE = 1.15
+# Podcast scripts are sized in minutes of speech instead of pages
+SPOKEN_WORDS_PER_MINUTE = 150
+DEFAULT_PODCAST_MINUTES = 5
 
 # What each material type should contain; the LLM writes one ## section per item
 MATERIAL_TEMPLATES = {
@@ -44,8 +47,10 @@ MATERIAL_TEMPLATES = {
         "Group the questions into ## sections by type, then end with a Marking guide section."
     ),
     "Podcast": (
-        "A script for students to listen to. Sections: Episode overview; "
-        "Script (speaker labels such as HOST A: and HOST B:, one speaker per paragraph); "
+        "A script for students to listen to; the Script section is read aloud by "
+        "text-to-speech. Sections: Episode overview; Script (every spoken paragraph starts "
+        "with the speaker label HOST A: or HOST B:, one speaker per paragraph; write only "
+        "the words to be spoken, with no sound effects, music cues or stage directions); "
         "Listening questions; Answer guide (for the teacher)."
     ),
     "Others": "Follow the teacher's instructions for what to produce, split into sensible sections.",
@@ -151,7 +156,9 @@ def _context(chunks, filenames, session_files):
         blocks.append(f"[Library: {name} ({meta['doc_type']})]\n{chunk['text']}")
     for name, text in session_files:
         blocks.append(f"[Session file: {name}]\n{text}")
-    return "\n\n---\n\n".join(blocks) or "(no reference material found)"
+    return "\n\n---\n\n".join(blocks) or (
+        "(none: write from your own knowledge of the Singapore secondary English syllabus)"
+    )
 
 
 _NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "single": 1}
@@ -167,7 +174,21 @@ def page_limit(material_type, instructions):
     return DEFAULT_PAGES.get(material_type)
 
 
-def _length_rule(pages):
+_MINUTES = re.compile(r"\b(\d+)[\s-]*(?:min|mins|minutes?)\b", re.I)
+
+
+def podcast_minutes(instructions):
+    """Spoken length of a podcast: the teacher's "5-minute" if given, else the default."""
+    match = _MINUTES.search(instructions or "")
+    return int(match.group(1)) if match else DEFAULT_PODCAST_MINUTES
+
+
+def _length_rule(pages, minutes=None):
+    if minutes:
+        return (
+            f"Length: the Script section must last about {minutes} minute{'s' if minutes > 1 else ''} "
+            f"read aloud, so about {minutes * SPOKEN_WORDS_PER_MINUTE} words."
+        )
     if not pages:
         return "Keep the material focused; do not pad it."
     return (
@@ -425,12 +446,13 @@ def proofread(markdown, context=None):
 def generate(band, material_type, format, theme, instructions, chunks, filenames, session_files):
     request = _request_summary(band, material_type, format, theme)
     pages = page_limit(material_type, instructions)
+    minutes = podcast_minutes(instructions) if material_type == "Podcast" else None
     teacher = INSTRUCTIONS_BLOCK.format(instructions=instructions or "(none)")
     prompt = GENERATE_PROMPT.format(
         request=request,
         context=_context(chunks, filenames, session_files),
         style=STYLE_RULES,
-        length=_length_rule(pages),
+        length=_length_rule(pages, minutes),
         instructions=teacher,
     )
     # The service occasionally streams back an empty reply; try once more

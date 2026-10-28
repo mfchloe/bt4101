@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { FileDown, Loader2, Paperclip, Sparkles, Upload } from "lucide-react";
 import MaterialSection from "../components/content-generator/MaterialSection";
+import PodcastAudio from "../components/content-generator/PodcastAudio";
 import printMaterial from "../components/content-generator/printMaterial";
 import ResizeHandle from "../components/ResizeHandle";
 import useResizableWidth from "../hooks/useResizableWidth";
@@ -502,6 +503,10 @@ export default function ContentGenerator() {
                 </div>
               )}
 
+              {materialType === "Podcast" && (
+                <PodcastAudio material={generatedMaterial} fileName={exportName} />
+              )}
+
               {/* If sections were detected, display them individually */}
               {sections.length > 0 ? (
                 sections.map((section, index) => (
@@ -534,6 +539,13 @@ export default function ContentGenerator() {
               )}
 
               {/* SOURCES */}
+              {sources.length === 0 && (
+                <p data-no-print className="mt-8 border-t border-slate-100 pt-5 text-xs leading-5 text-slate-500">
+                  No library resources were used. To base the material on your File
+                  library, pick a format or theme, or describe the topic in the instructions.
+                </p>
+              )}
+
               {sources.length > 0 && (
                 <div data-no-print className="mt-8 border-t border-slate-100 pt-5">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">

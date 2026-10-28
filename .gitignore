@@ -12,3 +12,6 @@ backend/uploads/
 backend/chroma_db/
 # Local SQLite database
 backend/app.db
+
+# Text-to-speech model for podcast audio (downloaded, ~120 MB)
+backend/tts_models/

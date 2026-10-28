@@ -1,11 +1,12 @@
+import io
 import os
 import tempfile
 
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file
 
 from config import FORMATS, THEMES
 from db import get_conn
-from services import generator
+from services import generator, podcast
 from services.extract import ALLOWED_EXTENSIONS, extract_text
 
 generator_bp = Blueprint("generator", __name__, url_prefix="/api/lesson")
@@ -67,7 +68,12 @@ def gather_context(params):
     query = generator.build_query(
         params["material_type"], params["format"], params["theme"], params["instructions"]
     )
-    chunks, relaxed = generator.retrieve(query, params["band"], params["format"], params["theme"])
+    # With no format, theme or instructions there is no topic to search for, so the
+    # library would return arbitrary files and steer the material towards their topics
+    if params["format"] or params["theme"] or params["instructions"]:
+        chunks, relaxed = generator.retrieve(query, params["band"], params["format"], params["theme"])
+    else:
+        chunks, relaxed = [], []
     session_files = generator.select_session_text(read_session_files(), query)
 
     file_ids = sorted({c["metadata"]["file_id"] for c in chunks})
@@ -138,3 +144,18 @@ def regenerate_section():
         return {"error": f'Section "{section_title}" not found'}, 400
 
     return {"content": content}
+
+
+# POST /api/lesson/podcast-audio - read a podcast script aloud, returns a WAV file
+@generator_bp.route("/podcast-audio", methods=["POST"])
+def podcast_audio():
+    material = (request.json or {}).get("material", "")
+    if not material.strip():
+        return {"error": "Missing podcast script"}, 400
+    try:
+        audio, _ = podcast.synthesise(material)
+    except ValueError as e:
+        return {"error": str(e)}, 400
+    except Exception as e:
+        return {"error": f"Could not create the audio: {e}"}, 500
+    return send_file(io.BytesIO(audio), mimetype="audio/wav", download_name="podcast.wav")

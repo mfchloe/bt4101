@@ -7,6 +7,8 @@ DB_PATH = os.path.join(BACKEND_DIR, "app.db")
 CHROMA_DIR = os.path.join(BACKEND_DIR, "chroma_db")
 UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
 ENV_PATH = os.path.join(BACKEND_DIR, "..", ".env")
+# Kokoro text-to-speech model for podcast audio (downloaded separately, see README)
+TTS_DIR = os.path.join(BACKEND_DIR, "tts_models")
 
 DOC_TYPES = {"Model essay", "Rubric", "Lesson notes", "Marked essay"}
 # Only these are retrieved by RAG (rubrics are read from SQL as bands, and marked essays are kept for reference only)

@@ -22,7 +22,9 @@ client = OpenAI(
     max_retries=2,
     timeout=httpx.Timeout(180, connect=15),
 )
-MODEL = "gemma4:26b" # can change later
+# Temporarily qwen3-vl while gemma4:26b is down on SoCLaaS ("no healthy provider
+# backends"); switch back to "gemma4:26b" before running the marking experiment
+MODEL = "qwen3-vl:32b"
 
 
 def _complete(messages):
